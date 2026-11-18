@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useData } from '../App.jsx'
-import { AGE_GROUPS, demoMode, insertRow, supabase } from '../data/db.js'
+import { AGE_GROUPS, demoMode, insertRow, listSubmissions, setSubmissionStatus, supabase } from '../data/db.js'
 
 // Each form: table name + fields. type 'ref' renders a dropdown of existing rows.
 const FORMS = (db) => {
@@ -33,7 +33,7 @@ function Login() {
   }
   return (
     <form className="stack" onSubmit={send}>
-      <p className="muted">Editors sign in with a one-time link sent to their email.</p>
+      <p className="muted">Admin sign-in. Sends a one-time link to your email.</p>
       <label>Email<input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setMsg('') }} placeholder="name@example.com" /></label>
       <button>Send sign-in link</button>
       {msg && <p className="small">{msg}</p>}
@@ -76,27 +76,62 @@ function EntryForm({ spec, onSaved }) {
   )
 }
 
+function Submissions() {
+  const [rows, setRows] = useState(null), [err, setErr] = useState(''), [show, setShow] = useState('pending')
+  const load = () => listSubmissions().then(setRows).catch((e) => setErr(e.message))
+  useEffect(() => { load() }, [])
+  const mark = async (r, status) => {
+    const note = status === 'rejected' ? window.prompt?.('Reason (optional)') ?? '' : r.admin_note
+    try { await setSubmissionStatus(r.id, status, note || null); load() } catch (e) { setErr(e.message) }
+  }
+  if (err) return <p className="error">{err}</p>
+  if (!rows) return <p className="muted">Loading…</p>
+  const list = rows.filter((r) => r.status === show)
+  return (
+    <>
+      <div className="row">
+        {['pending', 'approved', 'rejected'].map((s) => <button key={s} className={s === show ? 'on' : 'ghost'} onClick={() => setShow(s)}>{s[0].toUpperCase() + s.slice(1)} ({rows.filter((r) => r.status === s).length})</button>)}
+      </div>
+      {!list.length && <p className="muted">Nothing here.</p>}
+      {list.map((r) => (
+        <div key={r.id} className="card" style={{ marginBottom: '.8rem' }}>
+          <b>{r.kind}</b> <span className="small muted">· {new Date(r.created_at).toLocaleString()} · from {r.submitter_name}{r.submitter_batch ? ` (${r.submitter_batch})` : ''}{r.submitter_contact ? ` · ${r.submitter_contact}` : ''}</span>
+          <table style={{ margin: '.6rem 0' }}><tbody>
+            {Object.entries(r.details).filter(([, v]) => v).map(([k, v]) => <tr key={k}><th style={{ width: '35%' }}>{k}</th><td style={{ whiteSpace: 'pre-wrap' }}>{v}</td></tr>)}
+          </tbody></table>
+          {r.admin_note && <p className="small muted">Note: {r.admin_note}</p>}
+          {r.status === 'pending' && <div className="row" style={{ margin: 0 }}>
+            <button onClick={() => mark(r, 'approved')}>Approve</button>
+            <button className="ghost" onClick={() => mark(r, 'rejected')}>Reject</button>
+            <span className="small muted">Approve marks it done; add the details with the forms in the other tabs.</span>
+          </div>}
+        </div>
+      ))}
+    </>
+  )
+}
+
 export default function Admin() {
   const { db, reload } = useData()
   const [session, setSession] = useState(null)
-  const [tab, setTab] = useState('Player')
+  const [tab, setTab] = useState('Submissions')
   useEffect(() => {
     if (demoMode) return
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => data.subscription.unsubscribe()
   }, [])
-  const forms = FORMS(db)
+  const forms = { Submissions: null, ...FORMS(db) }
   return (
     <>
-      <h1>Add data</h1>
+      <h1>Admin</h1>
       {demoMode && <p className="demo" style={{ borderRadius: 8 }}>You can try the forms, but saving needs Supabase connected (see README).</p>}
       {!demoMode && !session ? <Login /> : (
         <>
           {session && <p className="small muted">Signed in as {session.user.email} · <a href="#" onClick={(e) => { e.preventDefault(); supabase.auth.signOut() }}>Sign out</a></p>}
           <p className="small muted">Tip: add the team and opponent first, then the match, then its goals.</p>
           <div className="tabs">{Object.keys(forms).map((k) => <button key={k} className={k === tab ? 'on' : 'ghost'} onClick={() => setTab(k)}>{k}</button>)}</div>
-          <EntryForm key={tab} spec={forms[tab]} onSaved={reload} />
+          {tab === 'Submissions' ? <Submissions /> : <EntryForm key={tab} spec={forms[tab]} onSaved={reload} />}
         </>
       )}
     </>

@@ -11,6 +11,7 @@ a:hover { text-decoration: underline; }
 h1 { font-size: 1.6rem; margin: .2rem 0 1rem; } h2 { font-size: 1.15rem; margin: 1.6rem 0 .6rem; }
 .top { background: var(--royal); color: #fff; display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; padding: .7rem 1.2rem; }
 .top a { color: #fff; } .brand { font-weight: 600; display: flex; align-items: center; gap: .5rem; }
+.crest { height: 36px; width: auto; }
 .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--gold); display: inline-block; }
 .top nav { display: flex; flex-wrap: wrap; gap: .3rem; margin-left: auto; }
 .top nav a { padding: .35rem .7rem; border-radius: 6px; } .top nav a.active { background: rgba(255,255,255,.15); }

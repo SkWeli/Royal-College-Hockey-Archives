@@ -11,6 +11,7 @@ import { MatchesFor } from './pages/MatchesFor.jsx'
 import Graph from './pages/Graph.jsx'
 import Timeline from './pages/Timeline.jsx'
 import Admin from './pages/Admin.jsx'
+import Submit from './pages/Submit.jsx'
 
 const DataCtx = createContext(null)
 export const useData = () => useContext(DataCtx)
@@ -24,13 +25,13 @@ export default function App() {
   return (
     <DataCtx.Provider value={{ db, reload }}>
       <header className="top">
-        <NavLink to="/" className="brand"><span className="dot" />Royal Hockey Archive</NavLink>
+        <NavLink to="/" className="brand"><img src="./crest.png" alt="" className="crest" onError={(e) => { e.currentTarget.style.display = 'none' }} />Royal College Hockey Archives</NavLink>
         <nav>
           <NavLink to="/players">Players</NavLink>
           <NavLink to="/teams">Teams</NavLink>
           <NavLink to="/graph">Network</NavLink>
           <NavLink to="/timeline">Timeline</NavLink>
-          <NavLink to="/admin">Add data</NavLink>
+          <NavLink to="/submit">Submit info</NavLink>
         </nav>
       </header>
       {demoMode && <div className="demo">Demo mode: showing sample data. Connect Supabase to use the real archive (see README).</div>}
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="/venues/:id" element={<MatchesFor kind="venue" />} />
             <Route path="/graph" element={<Graph />} />
             <Route path="/timeline" element={<Timeline />} />
+            <Route path="/submit" element={<Submit />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<p>Page not found.</p>} />
           </Routes>

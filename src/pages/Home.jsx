@@ -7,7 +7,7 @@ export default function Home() {
   const seasons = db.teams.map((t) => t.season)
   return (
     <>
-      <h1>Royal College Hockey Archive</h1>
+      <h1>Royal College Hockey Archives</h1>
       <p className="muted">A shared record of every player, team, match and honour in Royal College hockey, from U9 to the 1st XI.</p>
       <div className="stats">
         <div className="stat"><b>{db.players.length}</b><span>Players</span></div>
@@ -30,7 +30,7 @@ export default function Home() {
       <div className="grid">
         <Link className="card" to="/graph"><b>Network graph</b><div className="small muted">See how players, teams and honours connect.</div></Link>
         <Link className="card" to="/timeline"><b>Timeline</b><div className="small muted">Every age group, season by season.</div></Link>
-        <Link className="card" to="/admin"><b>Add or correct data</b><div className="small muted">For signed-in editors.</div></Link>
+        <Link className="card" to="/submit"><b>Submit information</b><div className="small muted">Send a missing player, match or honour, or a correction.</div></Link>
       </div>
     </>
   )

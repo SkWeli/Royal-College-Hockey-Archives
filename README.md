@@ -1,4 +1,4 @@
-# Royal College Hockey Archive
+# Royal College Hockey Archives
 
 A free website for the full history of Royal College hockey, covering players, teams from U9 to the 1st XI, matches, scorelines, venues and honours. It includes a network graph and a timeline.
 
@@ -18,7 +18,8 @@ A free website for the full history of Royal College hockey, covering players, t
 | Opponent / venue page | Head-to-head record across all years and age groups |
 | Network | Interactive force-directed graph with year range, honour and opponent toggles, and search |
 | Timeline | Age-group lanes by season, plus a season-by-season list |
-| Add data | Forms for every table (editors only) |
+| Submit info | Public form for anyone to send a player, team, match, honour or correction. It's saved for review and emailed to the admin. |
+| Admin (`#/admin`, not in the menu) | Review submissions (approve or reject), plus forms to add entries to the archive |
 
 ## Setup (about 20 minutes, all free)
 
@@ -28,16 +29,25 @@ A free website for the full history of Royal College hockey, covering players, t
 3. Do the same with `supabase/seed.sql`. This adds the first real entries: Roshan, Thisila Herath and Rohana Jayawickrama.
 4. Under **Authentication → URL configuration**, set the Site URL to your GitHub Pages address (from step 2).
 
+### 1b. Submissions and email
+1. In the SQL Editor, also run `supabase/submissions.sql`.
+2. Get a free access key at [web3forms.com](https://web3forms.com), using the admin email address. Submissions are emailed there.
+3. Add it as a GitHub secret named `VITE_WEB3FORMS_KEY` (see step 2).
+
+### 1c. Crest
+Put the white Royal College crest at `public/crest.png` (a transparent PNG, about 128 px tall). It's used in the header and as the browser tab icon.
+
 ### 2. Put the site on GitHub
 1. Create a GitHub repo (e.g. `royal-hockey-archive`) and push this folder to it.
 2. In the repo, go to **Settings → Secrets and variables → Actions** and add two secrets, using the values from Supabase **Project Settings → API**:
    - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY` (the *anon public* key; it's safe to use in a website)
+   - `VITE_SUPABASE_ANON_KEY` (the *publishable* key, `sb_publishable_…`; it's safe to use in a website)
+   - `VITE_WEB3FORMS_KEY`
 3. Go to **Settings → Pages** and set Source to **GitHub Actions**.
 4. Push to `main`. The site will be live at `https://YOUR-USERNAME.github.io/royal-hockey-archive/`.
 
-### 3. Add editors
-1. The editor opens **Add data** on the site and signs in with their email (they get a one-time link).
+### 3. Add admins
+1. The admin opens `…/#/admin` on the site and signs in with their email (they get a one-time link).
 2. In Supabase, go to **Table editor → auth.users** and copy their user id.
 3. In **Table editor → members**, add a row with that `user_id`, their name, and `is_editor = true`. To make someone a member who can see contacts but not edit, leave `is_editor = false`.
 
