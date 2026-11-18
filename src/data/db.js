@@ -62,7 +62,7 @@ export const AGE_GROUPS = ['U9', 'U11', 'U13', 'U15', 'U17', '1st XI']
 export const rolesFor = (ageGroup) => (ageGroup === '1st XI' ? ['Captain', 'Vice-captain', 'Secretary'] : ['Captain', 'Vice-captain'])
 export const HOCKEY_HONOURS = ['Royal Colours', 'Colombo Schools Colours', 'National Colours', 'Royal Crown', 'Other']
 export const MAX_YEARS = 10
-export const KNOWN_COACHES = ['Mr. Rohan Dissanayake']
+export const KNOWN_COACHES = ['Mr. Ashok Peiris', 'Mr. Mulaafar', 'Mr. Rohan Dissanayake', 'Mr. Vasantha de Silva']
 export const TEAM_RESULTS = ['Champions', 'Runners-up', '3rd place', 'Semi-finalists', 'Quarter-finalists']
 
 // Every country name (from the browser), with Sri Lanka first.
