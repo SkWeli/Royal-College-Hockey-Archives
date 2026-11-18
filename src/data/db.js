@@ -222,3 +222,28 @@ export async function setSubmissionStatus(id, status, admin_note) {
   const { error } = await supabase.from('submissions').update({ status, admin_note }).eq('id', id)
   if (error) throw new Error(error.message)
 }
+
+// ---------- Admin data editor ----------
+// pk: the column(s) that identify a row.
+export async function fetchTable(table) {
+  const { data, error } = await supabase.from(table).select('*').limit(50000)
+  if (error) throw new Error(error.message)
+  return data
+}
+
+const where = (q, pk, row) => pk.reduce((qq, k) => qq.eq(k, row[k]), q)
+
+export async function updateRow(table, pk, row, patch) {
+  if (demoMode) throw new Error('Demo mode: connect Supabase to edit data.')
+  const { data, error } = await where(supabase.from(table).update(patch), pk, row).select()
+  if (error) throw new Error(error.message)
+  if (!data?.length) throw new Error("Nothing was saved. Check you're signed in as an editor.")
+  return data[0]
+}
+
+export async function deleteRow(table, pk, row) {
+  if (demoMode) throw new Error('Demo mode: connect Supabase to delete data.')
+  const { data, error } = await where(supabase.from(table).delete(), pk, row).select()
+  if (error) throw new Error(error.message)
+  if (!data?.length) throw new Error("Nothing was deleted. Check you're signed in as an editor.")
+}

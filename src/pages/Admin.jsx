@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useData } from '../App.jsx'
 import { batchLabel, demoMode, importPlayer, importTeam, insertRow, listSubmissions, setSubmissionStatus, supabase } from '../data/db.js'
+import DataEditor from './DataEditor.jsx'
 import TeamFields, { emptyTeam, teamData, teamForm, validateTeam } from '../TeamFields.jsx'
 import HistoryFields, { PlayerBasics, emptyHistory, emptyPlayer, playerRow, validateHistory, validatePlayer } from '../HistoryFields.jsx'
 
@@ -194,7 +195,7 @@ export default function Admin() {
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => data.subscription.unsubscribe()
   }, [])
-  const forms = { Submissions: null, Player: null, Team: null, ...FORMS(db) }
+  const forms = { Submissions: null, Data: null, Player: null, Team: null, ...FORMS(db) }
   return (
     <>
       <h1>Admin</h1>
@@ -205,6 +206,7 @@ export default function Admin() {
           <p className="small muted">Tip: add the team and opponent first, then the match, then its goals.</p>
           <div className="tabs">{Object.keys(forms).map((k) => <button key={k} className={k === tab ? 'on' : 'ghost'} onClick={() => setTab(k)}>{k}</button>)}</div>
           {tab === 'Submissions' ? <Submissions db={db} onSaved={reload} />
+            : tab === 'Data' ? <DataEditor db={db} onChanged={reload} />
             : tab === 'Player' ? <div className="form-card" style={{ maxWidth: 820 }}><PlayerForm db={db} onSaved={reload} /></div>
             : tab === 'Team' ? <div className="form-card" style={{ maxWidth: 820 }}><TeamForm db={db} onSaved={reload} /></div>
             : <div className="form-card"><EntryForm key={tab} spec={forms[tab]} onSaved={reload} /></div>}

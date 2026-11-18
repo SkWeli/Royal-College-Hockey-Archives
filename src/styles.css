@@ -234,3 +234,26 @@ label.inline select { padding: .45rem .6rem; max-width: 200px; }
 .add-btn { border-style: dashed; border-width: 1.5px; width: 100%; padding: .75rem; color: var(--navy-700); }
 .add-btn:hover { border-style: solid; }
 .reveal { animation: rise .3s var(--ease) both; }
+
+/* ---------- Admin data editor ---------- */
+.data-list { display: grid; gap: .5rem; }
+.data-head, .data-cells { display: grid; grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr)) auto; gap: .8rem; align-items: center; }
+.data-head { padding: 0 1rem; font-size: .78rem; font-weight: 600; color: var(--muted); }
+.data-row { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: .6rem 1rem; box-shadow: var(--shadow); transition: border-color .2s, box-shadow .2s; }
+.data-row:hover { border-color: #c3cbe0; }
+.data-row.open { border-color: var(--navy-600); box-shadow: 0 0 0 4px rgba(26,58,128,.08); }
+.data-cells > span { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.data-actions { display: flex; gap: .4rem; justify-content: flex-end; }
+.data-actions button { padding: .45rem .8rem; font-size: .85rem; }
+.data-actions .icon-btn { padding: 0; }
+button.danger { background: var(--loss); color: #fff; }
+button.danger:hover { background: #991b1b; color: #fff; box-shadow: 0 6px 18px rgba(185,28,28,.3); }
+.edit-panel { max-width: none !important; margin-top: .8rem; padding-top: .9rem; border-top: 1px solid var(--border); animation: rise .3s var(--ease) both; }
+@media (max-width: 760px) {
+  .data-head { display: none; }
+  .data-cells { grid-template-columns: 1fr; gap: .2rem; }
+  .data-cells > span[data-l]::before { content: attr(data-l) ': '; color: var(--muted); font-size: .8rem; }
+  .data-actions { justify-content: flex-start; margin-top: .4rem; }
+}
+form.stack label > input:not([type=checkbox]), form.stack label > select, form.stack label > textarea { width: 100%; min-width: 0; }
+form.stack label { min-width: 0; }
