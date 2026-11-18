@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
-import { AGE_GROUPS, demoMode, loadContact } from '../data/db.js'
+import { AGE_GROUPS, batchLabel, demoMode, honourLabel, loadContact, yearsAtRoyal } from '../data/db.js'
 import { TeamLink, initials } from '../components.jsx'
 
 function Journey({ db, teams, achievements }) {
@@ -33,7 +33,7 @@ function Journey({ db, teams, achievements }) {
       })}
       <text x={8} y={top + groups.length * laneH + laneH / 2 + 4} fontSize="12" fill="#1b1f2a">Honours</text>
       {achievements.filter((a) => a.season).map((a, i) => (
-        <rect key={a.id} x={x(a.season) - 6 + (i % 3) * 4} y={top + groups.length * laneH + laneH / 2 - 6} width="12" height="12" transform={`rotate(45 ${x(a.season) + (i % 3) * 4} ${top + groups.length * laneH + laneH / 2})`} fill="#d4a017"><title>{a.season} {a.sport} {a.title} {a.level || ''}</title></rect>
+        <rect key={a.id} x={x(a.season) - 6 + (i % 3) * 4} y={top + groups.length * laneH + laneH / 2 - 6} width="12" height="12" transform={`rotate(45 ${x(a.season) + (i % 3) * 4} ${top + groups.length * laneH + laneH / 2})`} fill="#d4a017"><title>{a.season}: {honourLabel(a)}</title></rect>
       ))}
     </svg>
   )
@@ -61,7 +61,7 @@ export default function PlayerPage() {
         <div className="avatar">{initials(p.full_name)}</div>
         <div>
           <h1>{p.full_name}{p.known_as && <span className="muted" style={{ fontSize: '.6em' }}> ({p.known_as})</span>}</h1>
-          <p className="muted" style={{ margin: '.3rem 0 0' }}>{p.batch ? `Batch ${p.batch}` : 'Batch unknown'}{p.other_sports?.length ? ` · Also: ${p.other_sports.join(', ')}` : ''}</p>
+          <p className="muted" style={{ margin: '.3rem 0 0' }}>{[batchLabel(p), yearsAtRoyal(p)].filter(Boolean).join(' · ')}{p.other_sports?.length ? ` · Also: ${p.other_sports.join(', ')}` : ''}</p>
         </div>
       </div>
       {p.bio && <p>{p.bio}</p>}
@@ -77,8 +77,17 @@ export default function PlayerPage() {
       {teams.length ? teams.map((t) => <span key={t.id} className="pill"><TeamLink db={db} t={t} />{t.role ? ` · ${t.role}` : ''}</span>) : <p className="muted">None recorded yet.</p>}
       <h2>Honours</h2>
       {ach.length ? (
-        <table><thead><tr><th>Season</th><th>Sport</th><th>Honour</th><th>Level</th><th>Source</th></tr></thead>
-          <tbody>{ach.map((a) => <tr key={a.id}><td>{a.season || '—'}</td><td>{a.sport}</td><td>{a.title}</td><td>{a.level}</td><td className="small muted">{a.source}</td></tr>)}</tbody></table>
+        <div className="honour-list stagger">
+          {[...ach].sort((a, b) => (a.season || 0) - (b.season || 0)).map((a, i) => (
+            <div key={a.id} className="honour" style={{ '--i': i }}>
+              <span className="medal" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="9" r="6" /><path d="M8.5 14 7 22l5-3 5 3-1.5-8" /></svg>
+              </span>
+              <div><b>{honourLabel(a)}</b>{a.source && <div className="small muted">Source: {a.source}</div>}</div>
+              <span className="yr">{a.season || ''}</span>
+            </div>
+          ))}
+        </div>
       ) : <p className="muted">None recorded yet.</p>}
       {teammates.size > 0 && (<>
         <h2>Teammates</h2>

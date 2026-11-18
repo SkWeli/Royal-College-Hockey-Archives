@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useData } from '../App.jsx'
-import { AGE_GROUPS, demoMode, insertRow, listSubmissions, setSubmissionStatus, supabase } from '../data/db.js'
+import { AGE_GROUPS, batchLabel, demoMode, importPlayer, insertRow, listSubmissions, setSubmissionStatus, supabase } from '../data/db.js'
+import HistoryFields, { PlayerBasics, emptyHistory, emptyPlayer, playerRow, validateHistory, validatePlayer } from '../HistoryFields.jsx'
 
 // Each form: table name + fields. type 'ref' renders a dropdown of existing rows.
 const FORMS = (db) => {
-  const players = db.players.map((p) => [p.id, `${p.full_name}${p.batch ? ` (${p.batch})` : ''}`]).sort((a, b) => a[1].localeCompare(b[1]))
+  const players = db.players.map((p) => [p.id, `${p.full_name}${p.batch ? ` (${batchLabel(p)})` : ''}`]).sort((a, b) => a[1].localeCompare(b[1]))
   const teams = db.teams.map((t) => [t.id, db.teamLabel(t)]).sort((a, b) => a[1].localeCompare(b[1]))
   const list = (rows) => rows.map((r) => [r.id, r.name])
   return {
-    Player: { table: 'players', fields: [['full_name', 'Full name', 'text', true], ['known_as', 'Known as'], ['batch', 'Batch (e.g. 88/89)'], ['other_sports', 'Other sports (comma separated)', 'list'], ['bio', 'Short bio', 'textarea']] },
     Team: { table: 'teams', fields: [['age_group', 'Age group', AGE_GROUPS.map((g) => [g, g]), true], ['season', 'Season (year)', 'number', true], ['coach', 'Coach'], ['notes', 'Notes', 'textarea']] },
-    'Player in team': { table: 'team_memberships', fields: [['player_id', 'Player', players, true], ['team_id', 'Team', teams, true], ['role', 'Role', [['', 'Player'], ['Captain', 'Captain'], ['Vice-captain', 'Vice-captain']]], ['position', 'Position']] },
-    'Player honour': { table: 'achievements', fields: [['player_id', 'Player', players, true], ['title', 'Honour (e.g. Colours)', 'text', true], ['sport', 'Sport', 'text'], ['level', 'Level (e.g. 1st year, 2nd year, National)'], ['season', 'Season', 'number'], ['source', 'Source (who told us / where)']] },
+    'Player in team': { table: 'team_memberships', fields: [['player_id', 'Player', players, true], ['team_id', 'Team', teams, true], ['role', 'Role (Secretary: 1st XI only)', [['', 'Player'], ['Captain', 'Captain'], ['Vice-captain', 'Vice-captain'], ['Secretary', 'Secretary']]], ['position', 'Position']] },
+    'Player honour': { table: 'achievements', fields: [['player_id', 'Player', players, true], ['title', 'Honour (Royal Colours, Colombo Schools Colours, National Colours, Royal Crown, or your own)', 'text', true], ['sport', 'Sport (leave blank for Hockey)', 'text'], ['level', 'Level (Royal Colours only, e.g. 1st Year)'], ['season', 'Season', 'number'], ['source', 'Source (who told us / where)']] },
     'Team honour': { table: 'team_achievements', fields: [['team_id', 'Team', teams, true], ['title', 'Competition', 'text', true], ['finish', 'Placing (e.g. Champions, 3rd place)'], ['source', 'Source']] },
     Match: { table: 'matches', fields: [['team_id', 'Royal team', teams, true], ['opponent_id', 'Opponent', list(db.opponents)], ['venue_id', 'Venue', list(db.venues)], ['tournament_id', 'Competition', db.tournaments.map((t) => [t.id, `${t.name} ${t.season || ''}`])], ['match_date', 'Date', 'date'], ['score_for', 'Royal goals', 'number'], ['score_against', 'Opponent goals', 'number'], ['stage', 'Stage (e.g. Final)'], ['notes', 'Notes', 'textarea'], ['source', 'Source (e.g. Daily News, 12 Mar 1989)']] },
     Goal: { table: 'goals', fields: [['match_id', 'Match', db.matches.map((m) => [m.id, `${m.match_date || '?'} ${db.teamLabel(db.team[m.team_id])} vs ${db.opponent[m.opponent_id]?.name || '?'}`]), true], ['player_id', 'Scorer', players], ['minute', 'Minute', 'number'], ['kind', 'Type', [['', '—'], ['Field goal', 'Field goal'], ['Penalty corner', 'Penalty corner'], ['Penalty stroke', 'Penalty stroke']]]] },
@@ -76,12 +76,46 @@ function EntryForm({ spec, onSaved }) {
   )
 }
 
-function Submissions() {
+// Add a player with all his teams and honours in one go.
+const toForm = (p) => ({ full_name: p.full_name || '', known_as: p.known_as || '', joined_year: p.joined_year ?? '', batch: p.batch ?? '', other_sports: (p.other_sports || []).join(', '), bio: p.bio || '' })
+
+function PlayerForm({ db, onSaved, initial, onDone }) {
+  const [player, setPlayer] = useState(initial?.player || emptyPlayer())
+  const [history, setHistory] = useState(initial?.history || emptyHistory())
+  const [source, setSource] = useState(initial?.source || '')
+  const [st, setSt] = useState({})
+  const save = async (e) => {
+    e.preventDefault()
+    const errs = [...validatePlayer(player), ...validateHistory(history, player)]
+    if (errs.length) { setSt({ errs }); setTimeout(() => document.querySelector('.errors')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); return }
+    setSt({ busy: true })
+    try {
+      const p = await importPlayer(db, { player: playerRow(player), history, source: source.trim() })
+      setSt({ ok: `Saved ${p.full_name}.` }); setPlayer(emptyPlayer()); setHistory(emptyHistory()); setSource('')
+      onSaved(); onDone?.()
+    } catch (err) { setSt({ err: err.message }) }
+  }
+  return (
+    <form className="stack" onSubmit={save} style={{ maxWidth: 'none' }}>
+      <PlayerBasics value={player} onChange={(v) => { setPlayer(v); setSt({}) }} bioLabel="Short bio" />
+      <HistoryFields value={history} onChange={(v) => { setHistory(v); setSt({}) }} />
+      <label>Source (who told us, or where it's from)<input value={source} onChange={(e) => setSource(e.target.value)} /></label>
+      {st.errs && <div className="errors" role="alert">Please fix these:<ul>{st.errs.map((x) => <li key={x}>{x}</li>)}</ul></div>}
+      <button className="gold" disabled={st.busy}>{st.busy ? 'Saving…' : 'Save player'}</button>
+      {st.err && <p className="error small">{st.err}</p>}
+      {st.ok && <p className="ok small">{st.ok}</p>}
+      <p className="small muted">If a player with the same name and batch already exists, his teams and honours are added to that player instead of creating a new one.</p>
+    </form>
+  )
+}
+
+function Submissions({ db, onSaved }) {
   const [rows, setRows] = useState(null), [err, setErr] = useState(''), [show, setShow] = useState('pending')
+  const [open, setOpen] = useState(null)
   const load = () => listSubmissions().then(setRows).catch((e) => setErr(e.message))
   useEffect(() => { load() }, [])
   const mark = async (r, status) => {
-    const note = status === 'rejected' ? window.prompt?.('Reason (optional)') ?? '' : r.admin_note
+    const note = status === 'rejected' ? (window.prompt?.('Reason (optional)') ?? '') : r.admin_note
     try { await setSubmissionStatus(r.id, status, note || null); load() } catch (e) { setErr(e.message) }
   }
   if (err) return <p className="error">{err}</p>
@@ -97,14 +131,23 @@ function Submissions() {
         <div key={r.id} className="card" style={{ marginBottom: '.8rem' }}>
           <b>{r.kind}</b> <span className="small muted">· {new Date(r.created_at).toLocaleString()} · from {r.submitter_name}{r.submitter_batch ? ` (${r.submitter_batch})` : ''}{r.submitter_contact ? ` · ${r.submitter_contact}` : ''}</span>
           <table style={{ margin: '.6rem 0' }}><tbody>
-            {Object.entries(r.details).filter(([, v]) => v).map(([k, v]) => <tr key={k}><th style={{ width: '35%' }}>{k}</th><td style={{ whiteSpace: 'pre-wrap' }}>{v}</td></tr>)}
+            {Object.entries(r.details).filter(([k, v]) => v && !k.startsWith('_')).map(([k, v]) => <tr key={k}><th style={{ width: '35%' }}>{k}</th><td style={{ whiteSpace: 'pre-wrap' }}>{v}</td></tr>)}
           </tbody></table>
           {r.admin_note && <p className="small muted">Note: {r.admin_note}</p>}
           {r.status === 'pending' && <div className="row" style={{ margin: 0 }}>
-            <button onClick={() => mark(r, 'approved')}>Approve</button>
+            {r.details._data
+              ? <button className="gold" onClick={() => setOpen(open === r.id ? null : r.id)}>{open === r.id ? 'Close' : 'Review and add to archive'}</button>
+              : <button onClick={() => mark(r, 'approved')}>Approve</button>}
             <button className="ghost" onClick={() => mark(r, 'rejected')}>Reject</button>
-            <span className="small muted">Approve marks it done; add the details with the forms in the other tabs.</span>
+            {!r.details._data && <span className="small muted">Approve marks it done; add the details with the forms in the other tabs.</span>}
           </div>}
+          {open === r.id && (
+            <div className="form-card" style={{ marginTop: '1rem', maxWidth: 'none' }}>
+              <p className="small muted">Check and correct the details, then save. The submission is marked approved once saved.</p>
+              <PlayerForm db={db} onSaved={onSaved} onDone={() => { setOpen(null); mark(r, 'approved') }}
+                initial={{ player: toForm(r.details._data.player), history: r.details._data.history, source: r.details.Source || `Submitted by ${r.submitter_name}` }} />
+            </div>
+          )}
         </div>
       ))}
     </>
@@ -121,7 +164,7 @@ export default function Admin() {
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => data.subscription.unsubscribe()
   }, [])
-  const forms = { Submissions: null, ...FORMS(db) }
+  const forms = { Submissions: null, Player: null, ...FORMS(db) }
   return (
     <>
       <h1>Admin</h1>
@@ -131,7 +174,9 @@ export default function Admin() {
           {session && <p className="small muted">Signed in as {session.user.email} · <a href="#" onClick={(e) => { e.preventDefault(); supabase.auth.signOut() }}>Sign out</a></p>}
           <p className="small muted">Tip: add the team and opponent first, then the match, then its goals.</p>
           <div className="tabs">{Object.keys(forms).map((k) => <button key={k} className={k === tab ? 'on' : 'ghost'} onClick={() => setTab(k)}>{k}</button>)}</div>
-          {tab === 'Submissions' ? <Submissions /> : <div className="form-card"><EntryForm key={tab} spec={forms[tab]} onSaved={reload} /></div>}
+          {tab === 'Submissions' ? <Submissions db={db} onSaved={reload} />
+            : tab === 'Player' ? <div className="form-card" style={{ maxWidth: 820 }}><PlayerForm db={db} onSaved={reload} /></div>
+            : <div className="form-card"><EntryForm key={tab} spec={forms[tab]} onSaved={reload} /></div>}
         </>
       )}
     </>

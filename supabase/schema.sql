@@ -7,7 +7,8 @@ create table players (
   id uuid primary key default gen_random_uuid(),
   full_name text not null,
   known_as text,                       -- e.g. "Roshan ayya"
-  batch text,                          -- e.g. "88/89" or "O/L 1985"
+  joined_year int check (joined_year between 1835 and 2100),
+  batch int check (batch between 1835 and 2100),   -- school-leaving year, e.g. 2021 = "Batch of 2021"
   photo_url text,
   bio text,
   other_sports text[] default '{}',    -- e.g. {'Boxing'}
@@ -16,7 +17,7 @@ create table players (
 
 create table teams (
   id uuid primary key default gen_random_uuid(),
-  age_group text not null check (age_group in ('U9','U11','U13','U15','U17','U19','1st XI','2nd XI')),
+  age_group text not null check (age_group in ('U9','U11','U13','U15','U17','1st XI')),
   season int not null,                 -- year, e.g. 2016
   coach text,
   notes text,
@@ -27,7 +28,7 @@ create table team_memberships (
   id uuid primary key default gen_random_uuid(),
   player_id uuid not null references players(id) on delete cascade,
   team_id uuid not null references teams(id) on delete cascade,
-  role text,                           -- 'Captain', 'Vice-captain', null
+  role text check (role is null or role in ('Captain','Vice-captain','Secretary')),  -- Secretary: 1st XI only
   position text,
   unique (player_id, team_id)
 );
@@ -35,9 +36,9 @@ create table team_memberships (
 create table achievements (               -- awards for individual players
   id uuid primary key default gen_random_uuid(),
   player_id uuid not null references players(id) on delete cascade,
-  title text not null,                 -- e.g. 'Hockey colours'
+  title text not null,                 -- 'Royal Colours', 'Colombo Schools Colours', 'National Colours', 'Royal Crown', or free text
   sport text default 'Hockey',
-  level text,                          -- e.g. '1st year', '2nd year', 'National', 'Best player'
+  level text,                          -- e.g. '1st Year' (Royal Colours)
   season int,
   source text
 );

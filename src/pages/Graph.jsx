@@ -5,7 +5,7 @@ import { useData } from '../App.jsx'
 
 const COLORS = { player: '#8fb0ff', team: '#f2c230', honour: '#f08a5d', opponent: '#9aa3c0' }
 
-// Honours become shared nodes (e.g. one "Hockey colours" node), so players who share them cluster together.
+// Honours become shared nodes (e.g. one "Royal Colours" node), so players who share them cluster together.
 function buildGraph(db, { from, to, showHonours, showOpponents, fullRange }) {
   const nodes = new Map(), links = []
   const add = (id, label, kind, href) => nodes.has(id) || nodes.set(id, { id, label, kind, href })
@@ -34,7 +34,7 @@ function buildGraph(db, { from, to, showHonours, showOpponents, fullRange }) {
       if (!ok) continue
       add(p.id, p.full_name, 'player', `/players/${p.id}`)
       const key = `h:${a.sport}:${a.title}`
-      add(key, `${a.sport} ${a.title.toLowerCase()}`, 'honour')
+      add(key, !a.sport || a.sport === 'Hockey' ? a.title : `${a.sport}: ${a.title}`, 'honour')
       if (!seen.has(p.id + key)) { seen.add(p.id + key); links.push({ source: p.id, target: key }) }
     }
   }

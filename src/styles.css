@@ -184,3 +184,34 @@ form.stack label { display: grid; gap: .35rem; font-size: .9rem; font-weight: 50
   .pitch .line { stroke-dashoffset: 0; }
 }
 @media (max-width: 400px) { .brand { font-size: .95rem; } .crest { height: 34px; } }
+
+/* ---------- Teams and honours picker ---------- */
+.hset { border: 0; padding: 0; margin: .4rem 0 0; min-width: 0; }
+.hset legend { font-family: var(--serif); font-size: 1.15rem; font-weight: 700; color: var(--navy-800); padding: 0; margin-bottom: .2rem; }
+.hset > p { margin: 0 0 .7rem; }
+.hgrid { display: grid; gap: .6rem; }
+.hgroup { border: 1.5px solid var(--border); border-radius: 12px; background: #fff; transition: border-color .25s, box-shadow .25s, background .25s; }
+.hgroup.on { border-color: var(--navy-600); box-shadow: 0 0 0 4px rgba(26,58,128,.08); }
+.hgroup-head { display: flex !important; grid-template-columns: none !important; align-items: center; gap: .7rem !important; padding: .7rem .9rem; cursor: pointer; font-weight: 600 !important; color: var(--navy-800) !important; font-size: .98rem !important; flex-wrap: wrap; }
+.hgroup-head input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--navy-700); margin: 0; cursor: pointer; }
+.hgroup-head > span { flex: 1; }
+.counter { display: inline-flex; align-items: center; gap: .4rem; background: var(--navy-50); border-radius: 10px; padding: .2rem; cursor: default; }
+.counter button { width: 34px; height: 34px; padding: 0; font-size: 1.15rem; border-radius: 8px; }
+.counter span { min-width: 62px; text-align: center; font-size: .88rem; font-weight: 600; color: var(--navy-700); font-variant-numeric: tabular-nums; }
+.hrows { display: grid; gap: .5rem; padding: 0 .9rem .9rem; animation: rise .3s var(--ease) both; }
+.hrow { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; animation: rise .3s var(--ease) both; }
+.hrow-n { width: 2.4rem; font-size: .8rem; font-weight: 600; color: var(--muted); }
+.hrow input.year { width: 104px; }
+.hrow input.grow { flex: 1; min-width: 180px; }
+.chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.chip { padding: .4rem .75rem; font-size: .82rem; font-weight: 500; border-radius: 999px; background: #fff; color: var(--navy-700); border: 1.5px solid var(--border); box-shadow: none; }
+.chip:hover { background: var(--navy-50); color: var(--navy-800); border-color: var(--navy-600); box-shadow: none; transform: none; }
+.chip.on { background: var(--gold-500); color: var(--navy-900); border-color: var(--gold-500); }
+.chip.on:hover { background: var(--gold-400); color: var(--navy-900); }
+.errors { background: #fdecec; border: 1px solid #f3c2c2; color: var(--loss); border-radius: 10px; padding: .6rem .9rem; font-size: .88rem; }
+.errors ul { margin: .3rem 0 0; padding-left: 1.1rem; }
+.two { display: grid; gap: .9rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); }
+.honour-list { display: grid; gap: .5rem; }
+.honour { display: flex; align-items: center; gap: .8rem; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: .7rem 1rem; box-shadow: var(--shadow); }
+.honour .medal { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--gold-100); color: var(--gold-600); flex: none; }
+.honour b { color: var(--navy-800); } .honour .yr { margin-left: auto; font-family: var(--serif); font-weight: 700; color: var(--gold-600); }

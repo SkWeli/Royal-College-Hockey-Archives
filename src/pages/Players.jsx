@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useData } from '../App.jsx'
+import { batchLabel } from '../data/db.js'
 import { SearchIcon, initials } from '../components.jsx'
 
 export default function Players() {
@@ -8,10 +9,12 @@ export default function Players() {
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState('all')
   const list = db.players
-    .filter((p) => `${p.full_name} ${p.known_as || ''} ${p.batch || ''}`.toLowerCase().includes(q.toLowerCase()))
+    .filter((p) => `${p.full_name} ${p.known_as || ''} ${p.batch || ''} ${p.joined_year || ''}`.toLowerCase().includes(q.toLowerCase()))
     .filter((p) => {
       const ach = db.achievementsByPlayer[p.id] || []
-      if (filter === 'colours') return ach.some((a) => a.title === 'Colours')
+      if (filter === 'colours') return ach.some((a) => a.title === 'Royal Colours' && (a.sport || 'Hockey') === 'Hockey')
+      if (filter === 'crown') return ach.some((a) => a.title === 'Royal Crown')
+      if (filter === 'national') return ach.some((a) => a.title === 'National Colours')
       if (filter === 'captains') return (db.membershipsByPlayer[p.id] || []).some((m) => m.role === 'Captain')
       if (filter === 'multi') return p.other_sports?.length > 0
       return true
@@ -20,11 +23,11 @@ export default function Players() {
   return (
     <>
       <h1>Players</h1>
-      <p className="lead">Everyone who has worn the blue and gold on the hockey field. Search by name or batch.</p>
+      <p className="lead">Everyone who has worn the blue and gold on the hockey field. Search by name or batch year.</p>
       <div className="row">
-        <div className="search-wrap"><SearchIcon /><input placeholder="Search by name or batch" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+        <div className="search-wrap"><SearchIcon /><input placeholder="Search by name or batch year" value={q} onChange={(e) => setQ(e.target.value)} /></div>
         <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-          <option value="all">All players</option><option value="colours">Colours winners</option>
+          <option value="all">All players</option><option value="colours">Royal Colours (hockey)</option><option value="crown">Royal Crown</option><option value="national">National Colours</option>
           <option value="captains">Captains</option><option value="multi">Also played other sports</option>
         </select>
         <span className="muted small">{list.length} shown</span>
@@ -38,7 +41,7 @@ export default function Players() {
                 <div className="avatar">{initials(p.full_name)}</div>
                 <div>
                   <b>{p.full_name}</b>{p.known_as && <span className="muted small"> ({p.known_as})</span>}
-                  <div className="small muted">{p.batch || 'Batch unknown'} · {teams.length} team{teams.length === 1 ? '' : 's'}</div>
+                  <div className="small muted">{batchLabel(p)} · {teams.length} team{teams.length === 1 ? '' : 's'}</div>
                 </div>
               </div>
               {p.other_sports?.length > 0 && <div style={{ marginTop: '.6rem' }}>{p.other_sports.map((s) => <span key={s} className="pill">{s}</span>)}</div>}

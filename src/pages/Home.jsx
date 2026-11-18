@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useData } from '../App.jsx'
 import { CountUp, initials } from '../components.jsx'
+import { batchLabel } from '../data/db.js'
 
 // Top-down hockey pitch drawn in lines, with a gold ball travelling across it.
 function Pitch() {
@@ -18,7 +19,7 @@ function Pitch() {
 
 export default function Home() {
   const { db } = useData()
-  const colourSports = (p) => [...new Set((db.achievementsByPlayer[p.id] || []).filter((a) => a.title === 'Colours').map((a) => a.sport))]
+  const colourSports = (p) => [...new Set((db.achievementsByPlayer[p.id] || []).filter((a) => a.title === 'Royal Colours').map((a) => a.sport || 'Hockey'))]
   const multi = db.players.filter((p) => colourSports(p).length > 1)
   const seasons = db.teams.map((t) => t.season)
   const span = seasons.length ? Math.max(...seasons) - Math.min(...seasons) + 1 : 0
@@ -55,9 +56,9 @@ export default function Home() {
               <Link className="card" key={p.id} to={`/players/${p.id}`} style={{ '--i': i }}>
                 <div className="card-head">
                   <div className="avatar">{initials(p.full_name)}</div>
-                  <div><b>{p.full_name}</b><div className="small muted">{p.batch || 'Batch unknown'}</div></div>
+                  <div><b>{p.full_name}</b><div className="small muted">{batchLabel(p)}</div></div>
                 </div>
-                <div style={{ marginTop: '.7rem' }}>{colourSports(p).map((s) => <span key={s} className="pill gold">{s} colours</span>)}</div>
+                <div style={{ marginTop: '.7rem' }}>{colourSports(p).map((s) => <span key={s} className="pill gold">{s}: Royal Colours</span>)}</div>
               </Link>
             ))}
           </div>

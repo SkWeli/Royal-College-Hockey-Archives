@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useData } from '../App.jsx'
-import { AGE_GROUPS } from '../data/db.js'
+import { AGE_GROUPS, honourLabel } from '../data/db.js'
 import { record } from '../components.jsx'
 
 export default function Timeline() {
@@ -28,7 +28,7 @@ export default function Timeline() {
     const cap = (db.membershipsByTeam[t.id] || []).find((m) => m.role === 'Captain')
     if (cap) push(t.season, <span key={'c' + t.id}>1st XI captain: <Link to={`/players/${cap.player_id}`}>{db.player[cap.player_id]?.full_name}</Link></span>)
   })
-  db.achievements.filter((a) => a.season).forEach((a) => push(a.season, <span key={a.id}><Link to={`/players/${a.player_id}`}>{db.player[a.player_id]?.full_name}</Link>: {a.sport} {a.title.toLowerCase()}{a.level ? ` (${a.level})` : ''}</span>))
+  db.achievements.filter((a) => a.season).forEach((a) => push(a.season, <span key={a.id}><Link to={`/players/${a.player_id}`}>{db.player[a.player_id]?.full_name}</Link>: {honourLabel(a)}</span>))
 
   return (
     <>
@@ -56,7 +56,7 @@ export default function Timeline() {
             <g key={s}>
               <rect x={x(+s) - 7} y={ly('Honours') - 7} width="14" height="14" fill="#b4472a" transform={`rotate(45 ${x(+s)} ${ly('Honours')})`} />
               {list.length > 1 && <text x={x(+s) + 10} y={ly('Honours') - 6} fontSize="10" fill="#b4472a">{list.length}</text>}
-              <title>{list.map((a) => `${db.player[a.player_id]?.full_name}: ${a.sport} ${a.title}`).join('\n')}</title>
+              <title>{list.map((a) => `${db.player[a.player_id]?.full_name}: ${honourLabel(a)}`).join('\n')}</title>
             </g>
           ))}
           {db.milestones.map((m) => (
