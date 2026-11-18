@@ -10,7 +10,7 @@ export default function Teams() {
   return (
     <>
       <h1>Teams</h1>
-      <p className="lead">Every age-group team by season. A gold mark means the team won an honour.</p>
+      <p className="lead">Every age-group team by season. A gold star means the team won an achievement that year.</p>
       <div style={{ overflowX: 'auto' }}>
         <table>
           <thead><tr><th>Season</th>{groups.map((g) => <th key={g}>{g}</th>)}</tr></thead>

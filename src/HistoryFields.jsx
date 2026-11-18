@@ -1,4 +1,4 @@
-import { AGE_GROUPS, HOCKEY_HONOURS, MAX_YEARS, ordinal, rolesFor } from './data/db.js'
+import { AGE_GROUPS, COUNTRIES, HOCKEY_HONOURS, MAX_YEARS, ordinal, rolesFor } from './data/db.js'
 
 // Shared by the public Submit form and the admin player form.
 // value = { teams: { U13: [{ year, role }] }, honours: { 'Royal Colours': [{ year }], Other: [{ year, text }] } }
@@ -24,7 +24,7 @@ export function validateHistory(h, { joined, batch } = {}) {
   for (const [t, rows] of Object.entries(h.honours)) {
     rows.forEach((r, i) => {
       check(`${t}, ${ordinal(i + 1)} entry`, r)
-      if (t === 'Other' && !r.text?.trim()) errs.push(`Other honour ${i + 1}: describe the honour`)
+      if (t === 'Other' && !r.text?.trim()) errs.push(`Other achievement ${i + 1}: describe it`)
     })
     const ys = rows.map((r) => r.year).filter(Boolean)
     if (t !== 'Other' && new Set(ys).size !== ys.length) errs.push(`${t}: the same year is entered twice`)
@@ -107,7 +107,7 @@ export default function HistoryFields({ value, onChange }) {
                 <div key={i} className="hrow">
                   <span className="hrow-n">{ordinal(i + 1)}</span>
                   <YearInput value={r.year} onChange={(year) => patch({ year })} label={`${t} ${ordinal(i + 1)} year`} />
-                  {t === 'Other' && <input className="grow" placeholder="e.g. Best goalkeeper, Schools Nationals" value={r.text} onChange={(e) => patch({ text: e.target.value })} aria-label="Honour" />}
+                  {t === 'Other' && <input className="grow" placeholder="e.g. Best goalkeeper, Schools Nationals" value={r.text} onChange={(e) => patch({ text: e.target.value })} aria-label="Achievement" />}
                   {t === 'Royal Colours' && r.year && <span className="pill gold">{ordinal([...value.honours[t]].filter((x) => x.year).sort((a, b) => a.year - b.year).indexOf(r) + 1)} Year Coloursman</span>}
                 </div>
               )} />
@@ -119,7 +119,7 @@ export default function HistoryFields({ value, onChange }) {
 }
 
 // Basic player details, shared by Submit and Admin.
-export const emptyPlayer = () => ({ full_name: '', known_as: '', joined_year: '', batch: '', other_sports: '', bio: '' })
+export const emptyPlayer = () => ({ full_name: '', known_as: '', joined_year: '', batch: '', residence_country: 'Sri Lanka', other_sports: '', bio: '' })
 
 export function validatePlayer(p) {
   const errs = []
@@ -134,7 +134,7 @@ export function validatePlayer(p) {
 // Clean values ready for the players table.
 export const playerRow = (p) => ({
   full_name: p.full_name.trim(), known_as: p.known_as.trim() || null,
-  joined_year: p.joined_year ? +p.joined_year : null, batch: p.batch ? +p.batch : null,
+  joined_year: p.joined_year ? +p.joined_year : null, batch: p.batch ? +p.batch : null, residence_country: p.residence_country || 'Sri Lanka',
   other_sports: p.other_sports.split(',').map((s) => s.trim()).filter(Boolean), bio: p.bio.trim() || null,
 })
 
@@ -150,6 +150,9 @@ export function PlayerBasics({ value, onChange, bioLabel = 'Anything else about 
         <label>Year he joined Royal<input type="number" inputMode="numeric" {...f('joined_year')} placeholder="2008" /></label>
         <label>Batch (year he left Royal)<input type="number" inputMode="numeric" {...f('batch')} placeholder="2021" /></label>
       </div>
+      <label>Country he lives in now
+        <select {...f('residence_country')}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</select>
+      </label>
       <label>Other sports at Royal (comma separated)<input {...f('other_sports')} placeholder="Boxing, Athletics" /></label>
       <label>{bioLabel}<textarea rows="3" {...f('bio')} /></label>
     </>

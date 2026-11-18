@@ -62,6 +62,16 @@ export const AGE_GROUPS = ['U9', 'U11', 'U13', 'U15', 'U17', '1st XI']
 export const rolesFor = (ageGroup) => (ageGroup === '1st XI' ? ['Captain', 'Vice-captain', 'Secretary'] : ['Captain', 'Vice-captain'])
 export const HOCKEY_HONOURS = ['Royal Colours', 'Colombo Schools Colours', 'National Colours', 'Royal Crown', 'Other']
 export const MAX_YEARS = 10
+export const KNOWN_COACHES = ['Mr. Rohan Dissanayake']
+export const TEAM_RESULTS = ['Champions', 'Runners-up', '3rd place', 'Semi-finalists', 'Quarter-finalists']
+
+// Every country name (from the browser), with Sri Lanka first.
+const ISO = 'AD AE AF AG AL AM AO AR AT AU AZ BA BB BD BE BF BG BH BI BJ BN BO BR BS BT BW BY BZ CA CD CF CG CH CI CL CM CN CO CR CU CV CY CZ DE DJ DK DM DO DZ EC EE EG ER ES ET FI FJ FM FR GA GB GD GE GH GM GN GQ GR GT GW GY HK HN HR HT HU ID IE IL IN IQ IR IS IT JM JO JP KE KG KH KI KM KN KP KR KW KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MG MH MK ML MM MN MO MR MT MU MV MW MX MY MZ NA NE NG NI NL NO NP NR NZ OM PA PE PG PH PK PL PS PT PW PY QA RO RS RU RW SA SB SC SD SE SG SI SK SL SM SN SO SR SS ST SV SY SZ TD TG TH TJ TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VN VU WS YE ZA ZM ZW'
+export const COUNTRIES = (() => {
+  let names
+  try { const dn = new Intl.DisplayNames(['en'], { type: 'region' }); names = ISO.split(' ').map((c) => dn.of(c)) } catch { names = ['Australia', 'Canada', 'New Zealand', 'Qatar', 'United Arab Emirates', 'United Kingdom', 'United States'] }
+  return ['Sri Lanka', ...names.filter((n) => n !== 'Sri Lanka').sort((a, b) => a.localeCompare(b))]
+})()
 
 export const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}`
 export const batchLabel = (p) => (p?.batch ? `Batch of ${p.batch}` : 'Batch unknown')
@@ -95,16 +105,60 @@ export function historySummary(history) {
   const { teams, honours } = historyRows(history)
   return {
     Teams: teams.map((t) => `${t.age_group} ${t.season}${t.role ? ` (${t.role})` : ''}`).join(', '),
-    Honours: honours.map((h) => `${honourLabel(h)} ${h.season}`).join(', '),
+    Achievements: honours.map((h) => `${honourLabel(h)} ${h.season}`).join(', '),
   }
 }
 
-// Editors only: save a player with all his teams and honours. Reuses an existing player
+// Team form → readable lines for the email and the admin list.
+export function teamSummary(t) {
+  return {
+    Team: t.age_group, Year: t.season, Coach: t.coach,
+    Squad: t.squad.map((p) => `${p.name}${p.batch ? ` (Batch of ${p.batch})` : ''}${p.role ? `, ${p.role}` : ''}${p.country && p.country !== 'Sri Lanka' ? `, lives in ${p.country}` : ''}`).join('\n'),
+    Achievements: t.achievements.map((a) => `${a.title}${a.finish ? `: ${a.finish}` : ''}`).join('\n'),
+  }
+}
+
+const findPlayer = (db, name, batch) => {
+  const n = name.trim().toLowerCase()
+  const same = db.players.filter((p) => p.full_name.trim().toLowerCase() === n)
+  return batch ? same.find((p) => p.batch === +batch) || same.find((p) => !p.batch) : same.length === 1 ? same[0] : same.find((p) => !p.batch)
+}
+
+// Editors only: save a team, its squad and its achievements. Players not yet in the archive are added.
+export async function importTeam(db, t) {
+  if (demoMode) throw new Error('Demo mode: connect Supabase to save data.')
+  const row = { age_group: t.age_group, season: +t.season, ...(t.coach ? { coach: t.coach } : {}) }
+  const { data: team, error } = await supabase.from('teams').upsert(row, { onConflict: 'age_group,season' }).select().single()
+  if (error) throw new Error(error.message)
+  let added = 0
+  for (const s of t.squad) {
+    let p = findPlayer(db, s.name, s.batch)
+    if (!p) {
+      p = await insertRow('players', { full_name: s.name.trim(), batch: s.batch ? +s.batch : null, residence_country: s.country || 'Sri Lanka' })
+      db.players.push(p); added++
+    } else {
+      const patch = {}
+      if (s.country && s.country !== p.residence_country) patch.residence_country = s.country
+      if (s.batch && !p.batch) patch.batch = +s.batch
+      if (Object.keys(patch).length) await supabase.from('players').update(patch).eq('id', p.id)
+    }
+    const { error: e2 } = await supabase.from('team_memberships').upsert({ player_id: p.id, team_id: team.id, role: s.role || null }, { onConflict: 'player_id,team_id' })
+    if (e2) throw new Error(e2.message)
+  }
+  const have = new Set((db.teamAchByTeam?.[team.id] || []).map((a) => a.title.toLowerCase()))
+  const ach = t.achievements.filter((a) => !have.has(a.title.trim().toLowerCase())).map((a) => ({ team_id: team.id, title: a.title.trim(), finish: a.finish || null, source: t.source || null }))
+  if (ach.length) {
+    const { error: e3 } = await supabase.from('team_achievements').insert(ach)
+    if (e3) throw new Error(e3.message)
+  }
+  return { team, added }
+}
+
+// Editors only: save a player with all his teams and achievements. Reuses an existing player
 // (same name and batch) and existing teams, so importing twice doesn't duplicate.
 export async function importPlayer(db, { player, history, source }) {
   if (demoMode) throw new Error('Demo mode: connect Supabase to save data.')
-  const same = db.players.find((p) => p.full_name.trim().toLowerCase() === player.full_name.trim().toLowerCase() && (p.batch || null) === (player.batch || null))
-  const p = same || (await insertRow('players', player))
+  const p = findPlayer(db, player.full_name, player.batch) || (await insertRow('players', player))
   const { teams, honours } = historyRows(history)
   for (const t of teams) {
     let team = db.teams.find((x) => x.age_group === t.age_group && x.season === t.season)

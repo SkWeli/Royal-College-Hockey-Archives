@@ -31,7 +31,7 @@ function Journey({ db, teams, achievements }) {
           </g>
         )
       })}
-      <text x={8} y={top + groups.length * laneH + laneH / 2 + 4} fontSize="12" fill="#1b1f2a">Honours</text>
+      <text x={8} y={top + groups.length * laneH + laneH / 2 + 4} fontSize="12" fill="#1b1f2a">Achievements</text>
       {achievements.filter((a) => a.season).map((a, i) => (
         <rect key={a.id} x={x(a.season) - 6 + (i % 3) * 4} y={top + groups.length * laneH + laneH / 2 - 6} width="12" height="12" transform={`rotate(45 ${x(a.season) + (i % 3) * 4} ${top + groups.length * laneH + laneH / 2})`} fill="#d4a017"><title>{a.season}: {honourLabel(a)}</title></rect>
       ))}
@@ -61,7 +61,7 @@ export default function PlayerPage() {
         <div className="avatar">{initials(p.full_name)}</div>
         <div>
           <h1>{p.full_name}{p.known_as && <span className="muted" style={{ fontSize: '.6em' }}> ({p.known_as})</span>}</h1>
-          <p className="muted" style={{ margin: '.3rem 0 0' }}>{[batchLabel(p), yearsAtRoyal(p)].filter(Boolean).join(' · ')}{p.other_sports?.length ? ` · Also: ${p.other_sports.join(', ')}` : ''}</p>
+          <p className="muted" style={{ margin: '.3rem 0 0' }}>{[batchLabel(p), yearsAtRoyal(p), p.residence_country && `Lives in ${p.residence_country}`].filter(Boolean).join(' · ')}{p.other_sports?.length ? ` · Also: ${p.other_sports.join(', ')}` : ''}</p>
         </div>
       </div>
       {p.bio && <p>{p.bio}</p>}
@@ -69,13 +69,13 @@ export default function PlayerPage() {
         <div className="stat" style={{ "--i": 0 }}><b>{teams.length}</b><span>Teams</span></div>
         <div className="stat"><b>{apps.size}</b><span>Recorded matches</span></div>
         <div className="stat"><b>{goals.length}</b><span>Goals</span></div>
-        <div className="stat"><b>{ach.length}</b><span>Honours</span></div>
+        <div className="stat"><b>{ach.length}</b><span>Achievements</span></div>
       </div>
       <h2>Journey</h2>
       <Journey db={db} teams={teams} achievements={ach} />
       <h2>Teams</h2>
       {teams.length ? teams.map((t) => <span key={t.id} className="pill"><TeamLink db={db} t={t} />{t.role ? ` · ${t.role}` : ''}</span>) : <p className="muted">None recorded yet.</p>}
-      <h2>Honours</h2>
+      <h2>Achievements</h2>
       {ach.length ? (
         <div className="honour-list stagger">
           {[...ach].sort((a, b) => (a.season || 0) - (b.season || 0)).map((a, i) => (

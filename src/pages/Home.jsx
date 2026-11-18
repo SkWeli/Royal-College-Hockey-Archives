@@ -30,7 +30,7 @@ export default function Home() {
         <div className="hero-inner">
           <div>
             <div className="eyebrow">Royal College, Colombo</div>
-            <h1>Every player, every match, <em>every honour.</em></h1>
+            <h1>Every player, every match, <em>every achievement.</em></h1>
             <p>The shared history of Royal College hockey, from the U9s to the 1st XI. Built by old boys, one memory and one scorebook at a time.</p>
             <div className="row">
               <Link className="btn gold" to="/players">Explore players</Link>
@@ -44,7 +44,7 @@ export default function Home() {
 
       <main>
         <div className="stats float stagger">
-          {[[db.players.length, 'Players'], [db.teams.length, 'Teams'], [db.matches.length, 'Matches'], [db.achievements.length + db.team_achievements.length, 'Honours'], [span, 'Seasons covered']].map(([n, l], i) => (
+          {[[db.players.length, 'Players'], [db.teams.length, 'Teams'], [db.matches.length, 'Matches'], [db.achievements.length + db.team_achievements.length, 'Achievements'], [span, 'Seasons covered']].map(([n, l], i) => (
             <div key={l} className="stat" style={{ '--i': i }}><b><CountUp to={n} /></b><span>{l}</span></div>
           ))}
         </div>
@@ -66,10 +66,10 @@ export default function Home() {
 
         <h2>Explore the archive</h2>
         <div className="grid stagger">
-          {[['/graph', 'Network graph', 'See how players, teams and honours connect across the years.'],
+          {[['/graph', 'Network graph', 'See how players, teams and achievements connect across the years.'],
             ['/timeline', 'Timeline', 'Every age group, season by season.'],
             ['/teams', 'Teams', 'Squads, captains and results from U9 to the 1st XI.'],
-            ['/submit', 'Submit information', 'Send a missing player, match or honour, or a correction.']].map(([to, t, d], i) => (
+            ['/submit', 'Submit information', 'Send a missing player, match or achievement, or a correction.']].map(([to, t, d], i) => (
             <Link key={to} className="card" to={to} style={{ '--i': i }}><b>{t}</b><div className="small muted" style={{ marginTop: '.3rem' }}>{d}</div></Link>
           ))}
         </div>

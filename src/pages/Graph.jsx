@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import * as d3 from 'd3'
 import { useData } from '../App.jsx'
 
-const COLORS = { player: '#8fb0ff', team: '#f2c230', honour: '#f08a5d', opponent: '#9aa3c0' }
+const COLORS = { player: '#8fb0ff', team: '#f2c230', achievement: '#f08a5d', opponent: '#9aa3c0' }
 
 // Honours become shared nodes (e.g. one "Royal Colours" node), so players who share them cluster together.
 function buildGraph(db, { from, to, showHonours, showOpponents, fullRange }) {
@@ -18,7 +18,7 @@ function buildGraph(db, { from, to, showHonours, showOpponents, fullRange }) {
       links.push({ source: p.id, target: t.id, captain: m.role === 'Captain' })
     }
     if (showHonours) for (const a of db.teamAchByTeam[t.id] || []) {
-      add('ta:' + a.id, `${a.title}: ${a.finish}`, 'honour'); links.push({ source: t.id, target: 'ta:' + a.id })
+      add('ta:' + a.id, `${a.title}: ${a.finish}`, 'achievement'); links.push({ source: t.id, target: 'ta:' + a.id })
     }
     if (showOpponents) for (const m of db.matchesByTeam[t.id] || []) {
       const o = db.opponent[m.opponent_id]; if (!o) continue
@@ -34,7 +34,7 @@ function buildGraph(db, { from, to, showHonours, showOpponents, fullRange }) {
       if (!ok) continue
       add(p.id, p.full_name, 'player', `/players/${p.id}`)
       const key = `h:${a.sport}:${a.title}`
-      add(key, !a.sport || a.sport === 'Hockey' ? a.title : `${a.sport}: ${a.title}`, 'honour')
+      add(key, !a.sport || a.sport === 'Hockey' ? a.title : `${a.sport}: ${a.title}`, 'achievement')
       if (!seen.has(p.id + key)) { seen.add(p.id + key); links.push({ source: p.id, target: key }) }
     }
   }
@@ -70,7 +70,7 @@ export default function Graph() {
         .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y })
         .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y })
         .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null }))
-    node.append('circle').attr('r', (d) => ({ player: 8, team: 10, honour: 9, opponent: 7 }[d.kind])).attr('fill', (d) => COLORS[d.kind]).attr('stroke', '#050f2c').attr('stroke-width', 1.5)
+    node.append('circle').attr('r', (d) => ({ player: 8, team: 10, achievement: 9, opponent: 7 }[d.kind])).attr('fill', (d) => COLORS[d.kind]).attr('stroke', '#050f2c').attr('stroke-width', 1.5)
     node.append('text').text((d) => d.label).attr('x', 12).attr('y', 4).attr('font-size', 11).attr('fill', '#e6ebf7').attr('paint-order', 'stroke').attr('stroke', '#050f2c').attr('stroke-width', 3)
 
     const focus = (d) => {
@@ -101,11 +101,11 @@ export default function Graph() {
   return (
     <>
       <h1>Network</h1>
-      <p className="lead">How players, teams and honours connect. Players who share an honour gather around it.</p>
+      <p className="lead">How players, teams and achievements connect. Players who share an achievement gather around it.</p>
       <div className="row">
         <label className="small">From <input type="number" value={from} min={minY} max={to} onChange={(e) => setFrom(+e.target.value)} style={{ width: 90 }} /></label>
         <label className="small">To <input type="number" value={to} min={from} max={maxY} onChange={(e) => setTo(+e.target.value)} style={{ width: 90 }} /></label>
-        <label className="small"><input type="checkbox" checked={showHonours} onChange={(e) => setShowHonours(e.target.checked)} /> Honours</label>
+        <label className="small"><input type="checkbox" checked={showHonours} onChange={(e) => setShowHonours(e.target.checked)} /> Achievements</label>
         <label className="small"><input type="checkbox" checked={showOpponents} onChange={(e) => setShowOpponents(e.target.checked)} /> Opponents</label>
         <form onSubmit={search} className="row" style={{ margin: 0 }}>
           <input placeholder="Find a name" value={q} onChange={(e) => setQ(e.target.value)} /><button>Find</button>

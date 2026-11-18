@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useData } from '../App.jsx'
-import { AGE_GROUPS, batchLabel, demoMode, importPlayer, insertRow, listSubmissions, setSubmissionStatus, supabase } from '../data/db.js'
+import { batchLabel, demoMode, importPlayer, importTeam, insertRow, listSubmissions, setSubmissionStatus, supabase } from '../data/db.js'
+import TeamFields, { emptyTeam, teamData, teamForm, validateTeam } from '../TeamFields.jsx'
 import HistoryFields, { PlayerBasics, emptyHistory, emptyPlayer, playerRow, validateHistory, validatePlayer } from '../HistoryFields.jsx'
 
 // Each form: table name + fields. type 'ref' renders a dropdown of existing rows.
@@ -9,10 +10,8 @@ const FORMS = (db) => {
   const teams = db.teams.map((t) => [t.id, db.teamLabel(t)]).sort((a, b) => a[1].localeCompare(b[1]))
   const list = (rows) => rows.map((r) => [r.id, r.name])
   return {
-    Team: { table: 'teams', fields: [['age_group', 'Age group', AGE_GROUPS.map((g) => [g, g]), true], ['season', 'Season (year)', 'number', true], ['coach', 'Coach'], ['notes', 'Notes', 'textarea']] },
     'Player in team': { table: 'team_memberships', fields: [['player_id', 'Player', players, true], ['team_id', 'Team', teams, true], ['role', 'Role (Secretary: 1st XI only)', [['', 'Player'], ['Captain', 'Captain'], ['Vice-captain', 'Vice-captain'], ['Secretary', 'Secretary']]], ['position', 'Position']] },
-    'Player honour': { table: 'achievements', fields: [['player_id', 'Player', players, true], ['title', 'Honour (Royal Colours, Colombo Schools Colours, National Colours, Royal Crown, or your own)', 'text', true], ['sport', 'Sport (leave blank for Hockey)', 'text'], ['level', 'Level (Royal Colours only, e.g. 1st Year)'], ['season', 'Season', 'number'], ['source', 'Source (who told us / where)']] },
-    'Team honour': { table: 'team_achievements', fields: [['team_id', 'Team', teams, true], ['title', 'Competition', 'text', true], ['finish', 'Placing (e.g. Champions, 3rd place)'], ['source', 'Source']] },
+    'Player achievement': { table: 'achievements', fields: [['player_id', 'Player', players, true], ['title', 'Achievement (Royal Colours, Colombo Schools Colours, National Colours, Royal Crown, or your own)', 'text', true], ['sport', 'Sport (leave blank for Hockey)', 'text'], ['level', 'Level (Royal Colours only, e.g. 1st Year)'], ['season', 'Season', 'number'], ['source', 'Source (who told us / where)']] },
     Match: { table: 'matches', fields: [['team_id', 'Royal team', teams, true], ['opponent_id', 'Opponent', list(db.opponents)], ['venue_id', 'Venue', list(db.venues)], ['tournament_id', 'Competition', db.tournaments.map((t) => [t.id, `${t.name} ${t.season || ''}`])], ['match_date', 'Date', 'date'], ['score_for', 'Royal goals', 'number'], ['score_against', 'Opponent goals', 'number'], ['stage', 'Stage (e.g. Final)'], ['notes', 'Notes', 'textarea'], ['source', 'Source (e.g. Daily News, 12 Mar 1989)']] },
     Goal: { table: 'goals', fields: [['match_id', 'Match', db.matches.map((m) => [m.id, `${m.match_date || '?'} ${db.teamLabel(db.team[m.team_id])} vs ${db.opponent[m.opponent_id]?.name || '?'}`]), true], ['player_id', 'Scorer', players], ['minute', 'Minute', 'number'], ['kind', 'Type', [['', '—'], ['Field goal', 'Field goal'], ['Penalty corner', 'Penalty corner'], ['Penalty stroke', 'Penalty stroke']]]] },
     Opponent: { table: 'opponents', fields: [['name', 'School or club', 'text', true]] },
@@ -24,22 +23,19 @@ const FORMS = (db) => {
 }
 
 function Login() {
-  const [email, setEmail] = useState(''), [password, setPassword] = useState(''), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false)
+  const [email, setEmail] = useState(''), [msg, setMsg] = useState('')
   const send = async (e) => {
     e.preventDefault()
-    if (!email.includes('@') || !password) return setMsg('Enter your email and password.')
-    setBusy(true)
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-    setBusy(false)
-    if (error) setMsg('Wrong email or password.')
+    if (!email.includes('@')) return setMsg('Enter a valid email address.')
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href } })
+    setMsg(error ? error.message : 'Check your email for a sign-in link.')
   }
   return (
     <form className="stack form-card" onSubmit={send}>
-      <p className="muted">Admin sign-in</p>
-      <label>Email<input type="email" autoComplete="username" value={email} onChange={(e) => { setEmail(e.target.value); setMsg('') }} /></label>
-      <label>Password<input type="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setMsg('') }} /></label>
-      <button className="gold" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
-      {msg && <p className="error small">{msg}</p>}
+      <p className="muted">Admin sign-in. Sends a one-time link to your email.</p>
+      <label>Email<input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setMsg('') }} placeholder="name@example.com" /></label>
+      <button>Send sign-in link</button>
+      {msg && <p className="small">{msg}</p>}
     </form>
   )
 }
@@ -79,8 +75,8 @@ function EntryForm({ spec, onSaved }) {
   )
 }
 
-// Add a player with all his teams and honours in one go.
-const toForm = (p) => ({ full_name: p.full_name || '', known_as: p.known_as || '', joined_year: p.joined_year ?? '', batch: p.batch ?? '', other_sports: (p.other_sports || []).join(', '), bio: p.bio || '' })
+// Add a player with all his teams and achievements in one go.
+const toForm = (p) => ({ full_name: p.full_name || '', known_as: p.known_as || '', joined_year: p.joined_year ?? '', batch: p.batch ?? '', other_sports: (p.other_sports || []).join(', '), bio: p.bio || '', residence_country: p.residence_country || 'Sri Lanka' })
 
 function PlayerForm({ db, onSaved, initial, onDone }) {
   const [player, setPlayer] = useState(initial?.player || emptyPlayer())
@@ -107,7 +103,36 @@ function PlayerForm({ db, onSaved, initial, onDone }) {
       <button className="gold" disabled={st.busy}>{st.busy ? 'Saving…' : 'Save player'}</button>
       {st.err && <p className="error small">{st.err}</p>}
       {st.ok && <p className="ok small">{st.ok}</p>}
-      <p className="small muted">If a player with the same name and batch already exists, his teams and honours are added to that player instead of creating a new one.</p>
+      <p className="small muted">If a player with the same name and batch already exists, his teams and achievements are added to that player instead of creating a new one.</p>
+    </form>
+  )
+}
+
+// Add or update a team with its squad and achievements. New players are created.
+function TeamForm({ db, onSaved, initial, onDone }) {
+  const [team, setTeam] = useState(initial?.team ? teamForm(initial.team) : emptyTeam())
+  const [source, setSource] = useState(initial?.source || '')
+  const [st, setSt] = useState({})
+  const save = async (e) => {
+    e.preventDefault()
+    const errs = validateTeam(team)
+    if (errs.length) { setSt({ errs }); setTimeout(() => document.querySelector('.errors')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); return }
+    setSt({ busy: true })
+    try {
+      const { team: t, added } = await importTeam(db, { ...teamData(team), source: source.trim() })
+      setSt({ ok: `Saved ${t.age_group} ${t.season}${added ? `, with ${added} new player${added === 1 ? '' : 's'}` : ''}.` })
+      setTeam(emptyTeam()); setSource(''); onSaved(); onDone?.()
+    } catch (err) { setSt({ err: err.message }) }
+  }
+  return (
+    <form className="stack" onSubmit={save} style={{ maxWidth: 'none' }}>
+      <TeamFields db={db} value={team} onChange={(v) => { setTeam(v); setSt({}) }} />
+      <label>Source (who told us, or where it's from)<input value={source} onChange={(e) => setSource(e.target.value)} /></label>
+      {st.errs && <div className="errors" role="alert">Please fix these:<ul>{st.errs.map((x) => <li key={x}>{x}</li>)}</ul></div>}
+      <button className="gold" disabled={st.busy}>{st.busy ? 'Saving…' : 'Save team'}</button>
+      {st.err && <p className="error small">{st.err}</p>}
+      {st.ok && <p className="ok small">{st.ok}</p>}
+      <p className="small muted">If this team and year already exist, the squad and achievements are added to it. Players are matched by name (and batch, if given); anyone not found is added as a new player.</p>
     </form>
   )
 }
@@ -147,8 +172,10 @@ function Submissions({ db, onSaved }) {
           {open === r.id && (
             <div className="form-card" style={{ marginTop: '1rem', maxWidth: 'none' }}>
               <p className="small muted">Check and correct the details, then save. The submission is marked approved once saved.</p>
-              <PlayerForm db={db} onSaved={onSaved} onDone={() => { setOpen(null); mark(r, 'approved') }}
-                initial={{ player: toForm(r.details._data.player), history: r.details._data.history, source: r.details.Source || `Submitted by ${r.submitter_name}` }} />
+              {r.details._data.team
+                ? <TeamForm db={db} onSaved={onSaved} onDone={() => { setOpen(null); mark(r, 'approved') }} initial={{ team: r.details._data.team, source: `Submitted by ${r.submitter_name}` }} />
+                : <PlayerForm db={db} onSaved={onSaved} onDone={() => { setOpen(null); mark(r, 'approved') }}
+                    initial={{ player: toForm(r.details._data.player), history: r.details._data.history, source: `Submitted by ${r.submitter_name}` }} />}
             </div>
           )}
         </div>
@@ -167,7 +194,7 @@ export default function Admin() {
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => data.subscription.unsubscribe()
   }, [])
-  const forms = { Submissions: null, Player: null, ...FORMS(db) }
+  const forms = { Submissions: null, Player: null, Team: null, ...FORMS(db) }
   return (
     <>
       <h1>Admin</h1>
@@ -179,6 +206,7 @@ export default function Admin() {
           <div className="tabs">{Object.keys(forms).map((k) => <button key={k} className={k === tab ? 'on' : 'ghost'} onClick={() => setTab(k)}>{k}</button>)}</div>
           {tab === 'Submissions' ? <Submissions db={db} onSaved={reload} />
             : tab === 'Player' ? <div className="form-card" style={{ maxWidth: 820 }}><PlayerForm db={db} onSaved={reload} /></div>
+            : tab === 'Team' ? <div className="form-card" style={{ maxWidth: 820 }}><TeamForm db={db} onSaved={reload} /></div>
             : <div className="form-card"><EntryForm key={tab} spec={forms[tab]} onSaved={reload} /></div>}
         </>
       )}

@@ -1,23 +1,27 @@
 import { useState } from 'react'
-import { historySummary, sendSubmission } from '../data/db.js'
+import { useData } from '../App.jsx'
+import { historySummary, sendSubmission, teamSummary } from '../data/db.js'
+import TeamFields, { emptyTeam, teamData, validateTeam } from '../TeamFields.jsx'
 import HistoryFields, { PlayerBasics, emptyHistory, emptyPlayer, playerRow, validateHistory, validatePlayer } from '../HistoryFields.jsx'
 
-// Plain text fields per kind: easy for anyone to fill. The admin turns them into archive entries.
+// Player and Team have structured forms; the rest are plain text fields the admin reads.
 const KINDS = {
-  Player: null, // structured form below
-  Team: [['Age group (U9–1st XI)', true], ['Season (year)', true], ['Captain'], ['Coach'], ['Squad (names)', false, true], ['Honours won (e.g. All-Island 3rd place)', false, true]],
+  Player: null, // structured forms below
+  Team: null,
   Match: [['Royal team (e.g. 1st XI 2016)', true], ['Opponent', true], ['Date'], ['Score (Royal – opponent)', true], ['Competition / stage'], ['Venue'], ['Royal goalscorers', false, true], ['Notes', false, true]],
-  Honour: [['Player or team', true], ['Honour (e.g. Royal Colours, Royal Crown, Best player)', true], ['Sport'], ['Season (year)']],
+  Achievement: [['Player or team', true], ['Achievement (e.g. Royal Colours, Royal Crown, Best player)', true], ['Sport'], ['Year']],
   Correction: [['Which page or entry?', true], ['What should change?', true, true]],
   Other: [['Your message', true, true]],
 }
 
 export default function Submit() {
+  const { db } = useData()
+  const [team, setTeam] = useState(emptyTeam)
   const [kind, setKind] = useState('Player')
   const [vals, setVals] = useState({})
   const [player, setPlayer] = useState(emptyPlayer)
   const [history, setHistory] = useState(emptyHistory)
-  const [who, setWho] = useState({ submitter_name: '', submitter_batch: '', submitter_contact: '', source: '', botcheck: '' })
+  const [who, setWho] = useState({ submitter_name: '', submitter_batch: '', submitter_contact: '', botcheck: '' })
   const [state, setState] = useState({})
   const fields = KINDS[kind]
   const set = (k, v) => { setVals((s) => ({ ...s, [k]: v })); setState({}) }
@@ -26,20 +30,20 @@ export default function Submit() {
   const submit = async (e) => {
     e.preventDefault()
     const errs = fields ? fields.filter(([l, req]) => req && !vals[l]?.trim()).map(([l]) => `${l}: required`)
-      : [...validatePlayer(player), ...validateHistory(history, player)]
+      : kind === 'Team' ? validateTeam(team) : [...validatePlayer(player), ...validateHistory(history, player)]
     if (who.submitter_name.trim().length < 2) errs.push('Your name: required')
     if (errs.length) { setState({ errs }); setTimeout(() => document.querySelector('.errors')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); return }
     setState({ busy: true })
     try {
-      const details = fields ? Object.fromEntries(fields.map(([l]) => [l, vals[l]?.trim() || ''])) : {
+      const details = fields ? Object.fromEntries(fields.map(([l]) => [l, vals[l]?.trim() || '']))
+        : kind === 'Team' ? { ...teamSummary(teamData(team)), _data: { team: teamData(team) } } : {
         'Full name': player.full_name.trim(), 'Known as': player.known_as.trim(),
         'At Royal': player.joined_year || player.batch ? `${player.joined_year || '?'}–${player.batch || '?'}` : '',
         'Other sports': player.other_sports.trim(), ...historySummary(history), 'Anything else': player.bio.trim(),
         _data: { player: playerRow(player), history },
       }
-      if (who.source.trim()) details['Source'] = who.source.trim()
       await sendSubmission({ kind, details, ...who })
-      setVals({}); setPlayer(emptyPlayer()); setHistory(emptyHistory()); setWho((w) => ({ ...w, source: '' }))
+      setVals({}); setPlayer(emptyPlayer()); setHistory(emptyHistory()); setTeam(emptyTeam())
       setState({ ok: true })
     } catch (err) { setState({ err: err.message }) }
   }
@@ -56,20 +60,18 @@ export default function Submit() {
   return (
     <>
       <h1>Submit information</h1>
-      <p className="lead">Know a player, a team, a match result or an honour that's missing, or spotted a mistake? Send it here. The admin checks every submission before adding it to the archive.</p>
+      <p className="lead">Know a player, a team, a match result or an achievement that's missing, or spotted a mistake? Send it here. The admin checks every submission before adding it to the archive.</p>
       <div className="tabs">{Object.keys(KINDS).map((k) => <button key={k} type="button" className={k === kind ? 'on' : 'ghost'} onClick={() => { setKind(k); setVals({}); setState({}) }}>{k}</button>)}</div>
       <div className="form-card">
       <form className="stack" onSubmit={submit}>
-        {!fields && <><PlayerBasics value={player} onChange={(v) => { setPlayer(v); setState({}) }} /><HistoryFields value={history} onChange={(v) => { setHistory(v); setState({}) }} /></>}
+        {kind === 'Team' && <TeamFields db={db} value={team} onChange={(v) => { setTeam(v); setState({}) }} />}
+        {kind === 'Player' && <><PlayerBasics value={player} onChange={(v) => { setPlayer(v); setState({}) }} /><HistoryFields value={history} onChange={(v) => { setHistory(v); setState({}) }} /></>}
         {fields?.map(([label, req, long]) => (
           <label key={kind + label}>{label}{req ? ' *' : ''}
             {long ? <textarea rows="3" value={vals[label] || ''} onChange={(e) => set(label, e.target.value)} />
               : <input value={vals[label] || ''} onChange={(e) => set(label, e.target.value)} />}
           </label>
         ))}
-        <label>How do you know this? (e.g. I was in the team, a newspaper cutting, a scorebook)
-          <input value={who.source} onChange={(e) => setW('source', e.target.value)} />
-        </label>
         <h2 style={{ margin: '.6rem 0 0' }}>About you</h2>
         <label>Your name *<input value={who.submitter_name} onChange={(e) => setW('submitter_name', e.target.value)} /></label>
         <label>Your batch (year you left Royal)<input type="number" inputMode="numeric" value={who.submitter_batch} onChange={(e) => setW('submitter_batch', e.target.value)} placeholder="2021" /></label>

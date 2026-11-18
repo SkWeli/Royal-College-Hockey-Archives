@@ -13,7 +13,7 @@ export default function Timeline() {
   if (!years.length) return <p className="muted">Nothing dated yet.</p>
   const y0 = Math.min(...years), y1 = Math.max(...years)
   const groups = AGE_GROUPS.filter((g) => db.teams.some((t) => t.age_group === g))
-  const lanes = [...groups.slice().reverse(), 'Honours', 'Club']
+  const lanes = [...groups.slice().reverse(), 'Achievements', 'Club']
   const colW = 56, left = 80, laneH = 38, top = 28
   const W = left + (y1 - y0 + 1) * colW + 20, H = top + lanes.length * laneH + 10
   const x = (y) => left + (y - y0) * colW + colW / 2
@@ -33,7 +33,7 @@ export default function Timeline() {
   return (
     <>
       <h1>Timeline</h1>
-      <p className="lead">Each row is an age group. Bigger dots mean more recorded matches; a gold ring means the team won an honour. Click a dot to open the team.</p>
+      <p className="lead">Each row is an age group. Bigger dots mean more recorded matches; a gold ring means the team won an achievement. Click a dot to open the team.</p>
       <div ref={scroller} style={{ overflowX: 'auto' }}>
         <svg className="viz" width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ width: W, maxWidth: 'none' }}>
           {allYears.map((y) => (
@@ -54,8 +54,8 @@ export default function Timeline() {
           })}
           {Object.entries(db.achievements.filter((a) => a.season).reduce((m, a) => ((m[a.season] ||= []).push(a), m), {})).map(([s, list]) => (
             <g key={s}>
-              <rect x={x(+s) - 7} y={ly('Honours') - 7} width="14" height="14" fill="#b4472a" transform={`rotate(45 ${x(+s)} ${ly('Honours')})`} />
-              {list.length > 1 && <text x={x(+s) + 10} y={ly('Honours') - 6} fontSize="10" fill="#b4472a">{list.length}</text>}
+              <rect x={x(+s) - 7} y={ly('Achievements') - 7} width="14" height="14" fill="#b4472a" transform={`rotate(45 ${x(+s)} ${ly('Achievements')})`} />
+              {list.length > 1 && <text x={x(+s) + 10} y={ly('Achievements') - 6} fontSize="10" fill="#b4472a">{list.length}</text>}
               <title>{list.map((a) => `${db.player[a.player_id]?.full_name}: ${honourLabel(a)}`).join('\n')}</title>
             </g>
           ))}

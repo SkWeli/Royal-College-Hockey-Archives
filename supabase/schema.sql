@@ -12,6 +12,7 @@ create table players (
   photo_url text,
   bio text,
   other_sports text[] default '{}',    -- e.g. {'Boxing'}
+  residence_country text default 'Sri Lanka',
   created_at timestamptz default now()
 );
 
