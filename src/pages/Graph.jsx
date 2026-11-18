@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import * as d3 from 'd3'
 import { useData } from '../App.jsx'
 
-const COLORS = { player: '#534ab7', team: '#0f6e56', honour: '#c9541f', opponent: '#8a8f9c' }
+const COLORS = { player: '#8fb0ff', team: '#f2c230', honour: '#f08a5d', opponent: '#9aa3c0' }
 
 // Honours become shared nodes (e.g. one "Hockey colours" node), so players who share them cluster together.
 function buildGraph(db, { from, to, showHonours, showOpponents, fullRange }) {
@@ -64,21 +64,21 @@ export default function Graph() {
       .force('x', d3.forceX(W / 2).strength(0.05)).force('y', d3.forceY(H / 2).strength(0.07))
       .force('collide', d3.forceCollide(14))
     const link = g.append('g').selectAll('line').data(links).join('line')
-      .attr('stroke', (d) => (d.captain ? '#f2b705' : '#9aa1b2')).attr('stroke-width', (d) => (d.captain ? 3 : 1.2)).attr('stroke-opacity', 0.6)
-    const node = g.append('g').selectAll('g').data(nodes).join('g').style('cursor', 'pointer')
+      .attr('stroke', (d) => (d.captain ? '#f2c230' : '#8fa0cc')).attr('stroke-width', (d) => (d.captain ? 3 : 1.2)).attr('stroke-opacity', 0.45)
+    const node = g.append('g').selectAll('g').data(nodes).join('g').attr('class', 'node').style('cursor', 'pointer')
       .call(d3.drag()
         .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y })
         .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y })
         .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null }))
-    node.append('circle').attr('r', (d) => ({ player: 8, team: 10, honour: 9, opponent: 7 }[d.kind])).attr('fill', (d) => COLORS[d.kind]).attr('stroke', '#fff').attr('stroke-width', 1.5)
-    node.append('text').text((d) => d.label).attr('x', 12).attr('y', 4).attr('font-size', 11).attr('fill', '#1b1f2a').attr('paint-order', 'stroke').attr('stroke', '#fff').attr('stroke-width', 3)
+    node.append('circle').attr('r', (d) => ({ player: 8, team: 10, honour: 9, opponent: 7 }[d.kind])).attr('fill', (d) => COLORS[d.kind]).attr('stroke', '#050f2c').attr('stroke-width', 1.5)
+    node.append('text').text((d) => d.label).attr('x', 12).attr('y', 4).attr('font-size', 11).attr('fill', '#e6ebf7').attr('paint-order', 'stroke').attr('stroke', '#050f2c').attr('stroke-width', 3)
 
     const focus = (d) => {
-      if (!d) { node.style('opacity', 1); link.style('opacity', 1); return }
+      if (!d) { node.transition().duration(250).style('opacity', 1); link.transition().duration(250).style('opacity', 1); return }
       const nb = new Set([d.id])
       links.forEach((l) => { if (l.source.id === d.id) nb.add(l.target.id); if (l.target.id === d.id) nb.add(l.source.id) })
-      node.style('opacity', (x) => (nb.has(x.id) ? 1 : 0.12))
-      link.style('opacity', (l) => (l.source.id === d.id || l.target.id === d.id ? 1 : 0.04))
+      node.transition().duration(250).style('opacity', (x) => (nb.has(x.id) ? 1 : 0.12))
+      link.transition().duration(250).style('opacity', (l) => (l.source.id === d.id || l.target.id === d.id ? 1 : 0.04))
       setInfo(`${d.label}: ${nb.size - 1} connection${nb.size === 2 ? '' : 's'}${d.href ? ' · double-click to open' : ''}`)
     }
     node.on('click', (e, d) => { e.stopPropagation(); focus(d) })
@@ -101,6 +101,7 @@ export default function Graph() {
   return (
     <>
       <h1>Network</h1>
+      <p className="lead">How players, teams and honours connect. Players who share an honour gather around it.</p>
       <div className="row">
         <label className="small">From <input type="number" value={from} min={minY} max={to} onChange={(e) => setFrom(+e.target.value)} style={{ width: 90 }} /></label>
         <label className="small">To <input type="number" value={to} min={from} max={maxY} onChange={(e) => setTo(+e.target.value)} style={{ width: 90 }} /></label>
@@ -112,10 +113,10 @@ export default function Graph() {
       </div>
       <div className="legend row">
         {Object.entries(COLORS).map(([k, c]) => <span key={k}><i style={{ background: c }} />{k[0].toUpperCase() + k.slice(1)}</span>)}
-        <span><i style={{ background: '#f2b705', borderRadius: 0, height: 3, width: 16 }} />Captain link</span>
+        <span><i style={{ background: '#d4a017', borderRadius: 0, height: 3, width: 16 }} />Captain link</span>
         <span className="muted" style={{ marginLeft: 'auto' }}>{info}</span>
       </div>
-      <svg ref={ref} className="viz" viewBox="0 0 1000 640" style={{ height: 'min(70vh, 640px)' }} />
+      <svg ref={ref} className="viz dark" viewBox="0 0 1000 640" style={{ height: 'min(70vh, 640px)' }} />
       <p className="small muted">Scroll to zoom, drag the background to pan, and drag dots to rearrange.</p>
     </>
   )

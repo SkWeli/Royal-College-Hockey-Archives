@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { result } from './data/db.js'
 
@@ -43,3 +44,27 @@ export function MatchTable({ db, matches, showTeam = false }) {
     </table>
   )
 }
+
+// Counts up from 0 when first shown. Respects reduced motion.
+export function CountUp({ to, duration = 1100 }) {
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setN(to); return }
+    let raf, start
+    const step = (t) => {
+      start ??= t
+      const p = Math.min((t - start) / duration, 1)
+      setN(Math.round(to * (1 - Math.pow(1 - p, 3))))
+      if (p < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [to, duration])
+  return n.toLocaleString()
+}
+
+export const initials = (name = '') => name.replace(/\(.*?\)/g, '').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+
+export const SearchIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+)

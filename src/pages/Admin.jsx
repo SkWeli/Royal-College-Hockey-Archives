@@ -32,7 +32,7 @@ function Login() {
     setMsg(error ? error.message : 'Check your email for a sign-in link.')
   }
   return (
-    <form className="stack" onSubmit={send}>
+    <form className="stack form-card" onSubmit={send}>
       <p className="muted">Admin sign-in. Sends a one-time link to your email.</p>
       <label>Email<input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setMsg('') }} placeholder="name@example.com" /></label>
       <button>Send sign-in link</button>
@@ -131,7 +131,7 @@ export default function Admin() {
           {session && <p className="small muted">Signed in as {session.user.email} · <a href="#" onClick={(e) => { e.preventDefault(); supabase.auth.signOut() }}>Sign out</a></p>}
           <p className="small muted">Tip: add the team and opponent first, then the match, then its goals.</p>
           <div className="tabs">{Object.keys(forms).map((k) => <button key={k} className={k === tab ? 'on' : 'ghost'} onClick={() => setTab(k)}>{k}</button>)}</div>
-          {tab === 'Submissions' ? <Submissions /> : <EntryForm key={tab} spec={forms[tab]} onSaved={reload} />}
+          {tab === 'Submissions' ? <Submissions /> : <div className="form-card"><EntryForm key={tab} spec={forms[tab]} onSaved={reload} /></div>}
         </>
       )}
     </>

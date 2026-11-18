@@ -36,18 +36,20 @@ export default function Submit() {
   }
 
   if (state.ok) return (
-    <div className="card" style={{ maxWidth: 560 }}>
+    <div className="form-card" style={{ textAlign: 'center', margin: '2rem auto' }}>
+      <svg className="check" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="36" /><path d="M25 41l10 10 20-22" /></svg>
       <h1>Thank you</h1>
       <p>Your submission has been sent to the archive admin. It will appear on the site once it has been checked.</p>
-      <button onClick={() => setState({})}>Send another</button>
+      <button className="gold" onClick={() => setState({})}>Send another</button>
     </div>
   )
 
   return (
     <>
       <h1>Submit information</h1>
-      <p className="muted" style={{ maxWidth: 640 }}>Know a player, a team, a match result or an honour that's missing, or spotted a mistake? Send it here. The admin checks every submission before adding it to the archive.</p>
+      <p className="lead">Know a player, a team, a match result or an honour that's missing, or spotted a mistake? Send it here. The admin checks every submission before adding it to the archive.</p>
       <div className="tabs">{Object.keys(KINDS).map((k) => <button key={k} type="button" className={k === kind ? 'on' : 'ghost'} onClick={() => { setKind(k); setVals({}); setState({}) }}>{k}</button>)}</div>
+      <div className="form-card">
       <form className="stack" onSubmit={submit}>
         {fields.map(([label, req, long]) => (
           <label key={kind + label}>{label}{req ? ' *' : ''}
@@ -66,9 +68,10 @@ export default function Submit() {
         </label>
         <input type="text" name="botcheck" value={who.botcheck} onChange={(e) => setW('botcheck', e.target.value)} tabIndex="-1" autoComplete="off" style={{ display: 'none' }} aria-hidden="true" />
         <p className="small muted">Your contact details are only seen by the admin and are never shown on the site.</p>
-        <button disabled={state.busy}>{state.busy ? 'Sending…' : 'Submit'}</button>
+        <button className="gold" disabled={state.busy}>{state.busy ? 'Sending…' : 'Submit'}</button>
         {state.err && <p className="error small">{state.err}</p>}
       </form>
+      </div>
     </>
   )
 }

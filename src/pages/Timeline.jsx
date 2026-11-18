@@ -33,7 +33,7 @@ export default function Timeline() {
   return (
     <>
       <h1>Timeline</h1>
-      <p className="muted">Each row is an age group. Bigger dots mean more recorded matches; a gold ring means the team won an honour. Click a dot to open the team.</p>
+      <p className="lead">Each row is an age group. Bigger dots mean more recorded matches; a gold ring means the team won an honour. Click a dot to open the team.</p>
       <div ref={scroller} style={{ overflowX: 'auto' }}>
         <svg className="viz" width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ width: W, maxWidth: 'none' }}>
           {allYears.map((y) => (
@@ -46,29 +46,29 @@ export default function Timeline() {
           {db.teams.map((t) => {
             const r = record(db.matchesByTeam[t.id] || []), honour = db.teamAchByTeam[t.id]
             return (
-              <circle key={t.id} cx={x(t.season)} cy={ly(t.age_group)} r={6 + Math.min(r.P, 10) * 0.7} fill="#0f6e56"
-                stroke={honour ? '#f2b705' : '#fff'} strokeWidth={honour ? 3 : 1.5} style={{ cursor: 'pointer' }} onClick={() => nav(`/teams/${t.id}`)}>
+              <circle key={t.id} className="tl-dot" cx={x(t.season)} cy={ly(t.age_group)} r={6 + Math.min(r.P, 10) * 0.7} fill="#10275e"
+                stroke={honour ? '#d4a017' : '#fff'} strokeWidth={honour ? 3.5 : 1.5} onClick={() => nav(`/teams/${t.id}`)}>
                 <title>{db.teamLabel(t)} · {(db.membershipsByTeam[t.id] || []).length} players{r.P ? ` · W${r.W} D${r.D} L${r.L}` : ''}{honour ? ` · ${honour.map((h) => h.finish + ' ' + h.title).join(', ')}` : ''}</title>
               </circle>
             )
           })}
           {Object.entries(db.achievements.filter((a) => a.season).reduce((m, a) => ((m[a.season] ||= []).push(a), m), {})).map(([s, list]) => (
             <g key={s}>
-              <rect x={x(+s) - 7} y={ly('Honours') - 7} width="14" height="14" fill="#c9541f" transform={`rotate(45 ${x(+s)} ${ly('Honours')})`} />
-              {list.length > 1 && <text x={x(+s) + 10} y={ly('Honours') - 6} fontSize="10" fill="#c9541f">{list.length}</text>}
+              <rect x={x(+s) - 7} y={ly('Honours') - 7} width="14" height="14" fill="#b4472a" transform={`rotate(45 ${x(+s)} ${ly('Honours')})`} />
+              {list.length > 1 && <text x={x(+s) + 10} y={ly('Honours') - 6} fontSize="10" fill="#b4472a">{list.length}</text>}
               <title>{list.map((a) => `${db.player[a.player_id]?.full_name}: ${a.sport} ${a.title}`).join('\n')}</title>
             </g>
           ))}
           {db.milestones.map((m) => (
-            <g key={m.id}><circle cx={x(m.season)} cy={ly('Club')} r="7" fill="#0b2a5b" /><title>{m.season}: {m.title}</title></g>
+            <g key={m.id}><circle cx={x(m.season)} cy={ly('Club')} r="7" fill="#d4a017" /><title>{m.season}: {m.title}</title></g>
           ))}
         </svg>
       </div>
       <h2>Season by season</h2>
       {Object.keys(bySeason).sort((a, b) => b - a).map((s) => (
-        <div key={s} className="card" style={{ marginBottom: '.6rem' }}>
-          <b>{s}</b>
-          <ul style={{ margin: '.3rem 0 0', paddingLeft: '1.1rem' }}>{bySeason[s].map((el, i) => <li key={i}>{el}</li>)}</ul>
+        <div key={s} className="card season-card" style={{ marginBottom: '.8rem' }}>
+          <div className="year">{s}</div>
+          <ul>{bySeason[s].map((el, i) => <li key={i}>{el}</li>)}</ul>
         </div>
       ))}
     </>
