@@ -24,19 +24,22 @@ const FORMS = (db) => {
 }
 
 function Login() {
-  const [email, setEmail] = useState(''), [msg, setMsg] = useState('')
+  const [email, setEmail] = useState(''), [password, setPassword] = useState(''), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false)
   const send = async (e) => {
     e.preventDefault()
-    if (!email.includes('@')) return setMsg('Enter a valid email address.')
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href } })
-    setMsg(error ? error.message : 'Check your email for a sign-in link.')
+    if (!email.includes('@') || !password) return setMsg('Enter your email and password.')
+    setBusy(true)
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    setBusy(false)
+    if (error) setMsg('Wrong email or password.')
   }
   return (
     <form className="stack form-card" onSubmit={send}>
-      <p className="muted">Admin sign-in. Sends a one-time link to your email.</p>
-      <label>Email<input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setMsg('') }} placeholder="name@example.com" /></label>
-      <button>Send sign-in link</button>
-      {msg && <p className="small">{msg}</p>}
+      <p className="muted">Admin sign-in</p>
+      <label>Email<input type="email" autoComplete="username" value={email} onChange={(e) => { setEmail(e.target.value); setMsg('') }} /></label>
+      <label>Password<input type="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setMsg('') }} /></label>
+      <button className="gold" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+      {msg && <p className="error small">{msg}</p>}
     </form>
   )
 }
