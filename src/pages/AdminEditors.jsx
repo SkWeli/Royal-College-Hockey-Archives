@@ -122,6 +122,20 @@ const KINDS = [['', '—'], 'Field goal', 'Penalty corner', 'Penalty stroke']
 
 function Back({ to, label }) { return <Link className="small" to={to}>← {label}</Link> }
 
+// Matches played in one tournament or trophy, shown under its season result.
+function MatchList({ db, matches }) {
+  if (!matches.length) return null
+  return (
+    <div className="result-matches">
+      {matches.map((m) => (
+        <Link key={m.id} to={`/admin/match/${m.id}`}>
+          vs {db.opponent[m.opponent_id]?.name || '?'} · {m.score_for ?? '?'}–{m.score_against ?? '?'}{m.stage ? ` · ${m.stage}` : ''}{m.match_date ? ` · ${m.match_date}` : ''}
+        </Link>
+      ))}
+    </div>
+  )
+}
+
 // ---------- Player ----------
 export function PlayerEditor({ db, id, reload }) {
   const nav = useNavigate()
@@ -265,7 +279,8 @@ export function TeamEditor({ db, id, reload }) {
     .sort((a, b) => (order[a.role] ?? 9) - (order[b.role] ?? 9) || (a.p?.batch ?? 9999) - (b.p?.batch ?? 9999) || (a.p?.full_name || '').localeCompare(b.p?.full_name || ''))
   const comps = competitionsFor(t.age_group)
   const compNames = [...comps.tournaments, ...comps.trophies.map((x) => x.name)]
-  const results = db.teamAchByTeam[id] || []
+  const results = db.storedResultsByTeam[id] || []
+  const fromMatches = (db.teamAchByTeam[id] || []).filter((a) => a.fromMatch)
   const matches = [...(db.matchesByTeam[id] || [])].sort((a, b) => (a.match_date || '').localeCompare(b.match_date || ''))
   const opponents = [...new Set([...db.opponents.map((o) => o.name), ...comps.trophies.map((x) => x.opponent)])].sort()
   const allNames = [...new Set(db.players.map((p) => p.full_name))].sort()
@@ -299,12 +314,31 @@ export function TeamEditor({ db, id, reload }) {
         }} />
       </Section>
 
-      <Section title="Season results" count={results.length} hint="Champions, Runners-Up, 2nd Runners-Up, and Winners or Drawn in trophy matches, show as achievements.">
-        {results.length > 0 && <Heads lead="" fields={[{ k: 'title', label: 'Tournament or trophy', w: 2 }, { k: 'finish', label: 'Result' }, { k: 'source', label: 'Source' }]} />}
+      <Section title="Season results" count={results.length + fromMatches.length} hint="Every tournament and trophy this team played, with its matches. Trophy matches take their result from the score. For a tournament, choose how the team finished. Champions, Runners-Up, 2nd Runners-Up, and Winners or Drawn in trophy matches, show as achievements.">
+        {(results.length + fromMatches.length) > 0 && <Heads lead="" fields={[{ k: 'title', label: 'Tournament or trophy', w: 2 }, { k: 'finish', label: 'Result' }, { k: 'source', label: 'Source' }]} />}
         {results.map((a) => (
-          <EditRow key={a.id} run={run} row={a} lead={isAchievement(a) ? <span className="pill gold" style={{ margin: 0 }}>Achievement</span> : <span className="small muted">Result</span>}
-            fields={[{ k: 'title', label: 'Tournament or trophy', req: true, list: compNames, w: 2 }, { k: 'finish', label: 'Result', list: resultsFor(a.title, t.age_group) }, { k: 'source', label: 'Source' }]}
-            onSave={(patch) => updateRow('team_achievements', ['id'], a, patch)} onDelete={(r) => deleteRow('team_achievements', ['id'], r)} />
+          <div key={a.id} className="result-group">
+            <EditRow run={run} row={a} lead={isAchievement(a) ? <span className="pill gold" style={{ margin: 0 }}>Achievement</span> : <span className="small muted">Result</span>}
+              fields={[{ k: 'title', label: 'Tournament or trophy', req: true, list: compNames, w: 2 }, { k: 'finish', label: 'Result', type: 'select', options: [...new Set(['', ...(a.finish ? [a.finish] : []), ...resultsFor(a.title, t.age_group)])] }, { k: 'source', label: 'Source' }]}
+              onSave={(patch) => updateRow('team_achievements', ['id'], a, patch)} onDelete={(r) => deleteRow('team_achievements', ['id'], r)} />
+            <MatchList db={db} matches={db.matchesFor(a)} />
+          </div>
+        ))}
+        {fromMatches.map((a) => (
+          <div key={a.id} className="result-group">
+            {a.trophy ? (
+              <div className="ed-row" style={{ gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto' }}>
+                {isAchievement(a) ? <span className="pill gold" style={{ margin: 0, justifySelf: 'start' }}>Achievement</span> : <span className="small muted">Result</span>}
+                <span>{a.title}</span><span>{a.finish || '—'}</span>
+                <span className="small muted">From the match score</span><span />
+              </div>
+            ) : (
+              <AddRow run={run} label="Save result" lead={<span className="small warn">Result not set</span>}
+                fields={[{ k: 'title', label: 'Tournament or trophy', req: true, def: a.title, w: 2 }, { k: 'finish', label: 'Result', type: 'select', options: ['', ...resultsFor(a.title, t.age_group)], req: true }, { k: 'source', label: 'Source' }]}
+                onAdd={(row) => insertRow('team_achievements', { ...row, team_id: id })} />
+            )}
+            <MatchList db={db} matches={db.matchesFor(a)} />
+          </div>
         ))}
         <AddRow run={run} label="Add result" lead="New" fields={[{ k: 'title', label: 'Tournament or trophy', req: true, list: compNames, w: 2 }, { k: 'finish', label: 'Result', list: resultsFor('', t.age_group) }, { k: 'source', label: 'Source' }]}
           onAdd={(row) => insertRow('team_achievements', { ...row, team_id: id })} />

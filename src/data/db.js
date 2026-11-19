@@ -1,3 +1,4 @@
+import { useEffect as _useEffect, useState as _useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { sample } from './sample.js'
 
@@ -40,6 +41,27 @@ export function index(db) {
   const by = (arr) => Object.fromEntries(arr.map((r) => [r.id, r]))
   const group = (arr, k) => arr.reduce((m, r) => ((m[r[k]] ||= []).push(r), m), {})
   const teamLabel = (t) => (t ? `${ageLabel(t.age_group)} ${t.season}` : '')
+  // Every tournament or trophy a team played appears in its season results, with its matches.
+  // A trophy match with a score is its own result (Winners, Drawn or Lost). A tournament needs its final
+  // result entered; until then it shows with no result. Entered season results win if both exist.
+  const tournament = by(db.tournaments)
+  const key = (teamId, title) => `${teamId}|${title.trim().toLowerCase()}`
+  const entered = new Set(db.team_achievements.map((a) => key(a.team_id, a.title)))
+  const fromMatches = {}
+  for (const m of db.matches) {
+    const comp = tournament[m.tournament_id]
+    if (!comp || comp.level === 'Friendly') continue
+    const k = key(m.team_id, comp.name)
+    if (entered.has(k)) continue
+    const trophy = comp.level === 'Trophy match' || trophyFor(comp.name)
+    const r = trophy ? result(m) : ''
+    fromMatches[k] = { id: `match-${m.id}`, team_id: m.team_id, title: comp.name, trophy: !!trophy,
+      finish: r === 'W' ? 'Winners' : r === 'D' ? 'Drawn' : r === 'L' ? 'Lost' : null, match_id: m.id, fromMatch: true }
+  }
+  const results = [...db.team_achievements, ...Object.values(fromMatches)]
+  // matches grouped by team + competition name, for showing under each season result
+  const matchesByResult = {}
+  for (const m of db.matches) { const c = tournament[m.tournament_id]; if (c) (matchesByResult[key(m.team_id, c.name)] ||= []).push(m) }
   return {
     ...db,
     player: by(db.players), team: by(db.teams), venue: by(db.venues),
@@ -47,8 +69,11 @@ export function index(db) {
     membershipsByPlayer: group(db.team_memberships, 'player_id'),
     membershipsByTeam: group(db.team_memberships, 'team_id'),
     achievementsByPlayer: group(db.achievements, 'player_id'),
-    teamAchByTeam: group(db.team_achievements, 'team_id'),
+    storedResultsByTeam: group(db.team_achievements, 'team_id'),       // season results as entered
+    teamAchByTeam: group(results, 'team_id'),                          // + trophy results worked out from matches
+    podiumByTeam: group(results.filter(isAchievement), 'team_id'),     // achievements only
     matchesByTeam: group(db.matches, 'team_id'),
+    matchesFor: (a) => (matchesByResult[`${a.team_id}|${a.title.trim().toLowerCase()}`] || []).sort((x, y) => (x.match_date || '').localeCompare(y.match_date || '')),
     goalsByMatch: group(db.goals, 'match_id'),
     goalsByPlayer: group(db.goals, 'player_id'),
     teamLabel,
@@ -82,7 +107,7 @@ export const MAX_YEARS = 10
 export const KNOWN_COACHES = ['Mr. Ashok Peiris', 'Mr. Mulaafar', 'Mr. Rohan Dissanayake', 'Mr. Vasantha de Silva']
 // Team competitions by age group. Trophy matches are against one school.
 export const TOURNAMENT_RESULTS = ['Champions', 'Runners-Up', '2nd Runners-Up', '4th Place', 'Quarter-Finals', 'Pre-Quarter-Finals', 'Group Stage']
-export const TROPHY_RESULTS = ['Won', 'Drawn', 'Lost']
+export const TROPHY_RESULTS = ['Winners', 'Drawn', 'Lost']
 export const CARNIVAL_RESULTS = ['Gold Star', 'Silver Star']
 const AI = 'All-Island Schools Hockey Championship', WP = 'Western Province Hockey Championship'
 export const COMPETITIONS = {
@@ -99,6 +124,9 @@ export const COMPETITIONS = {
   U15: { tournaments: [AI, WP], trophies: [] },
   U13: { tournaments: [AI, WP, 'Western Province Hockey Carnival'], trophies: [] },
 }
+// Results that count as the team's achievements (shown in gold, on the timeline and in the Teams grid).
+const PODIUM = new Set(['champions', 'runners-up', '2nd runners-up', '3rd place', 'winners', 'won', 'drawn', 'gold star', 'silver star'])
+export const isAchievement = (a) => PODIUM.has(String(a?.finish || '').trim().toLowerCase())
 export const competitionsFor = (g) => COMPETITIONS[g] || { tournaments: [], trophies: [] }
 export const trophyFor = (name) => Object.values(COMPETITIONS).flatMap((c) => c.trophies).find((t) => t.name === name)
 export function resultsFor(name, ageGroup) {
@@ -157,7 +185,10 @@ export function teamSummary(t) {
   return {
     Team: t.age_group, Year: t.season, Coach: t.coach,
     Squad: t.squad.map((p) => `${p.name}${p.batch ? ` (Batch of ${p.batch})` : ''}${p.role ? `, ${p.role}` : ''}${p.country && p.country !== 'Sri Lanka' ? `, lives in ${p.country}` : ''}`).join('\n'),
-    Achievements: t.achievements.map((a) => `${a.title}${a.finish ? `: ${a.finish}` : ''}`).join('\n'),
+    'Season results': (t.results || []).map((r) => [
+      `${r.title}${r.finish ? `: ${r.finish}` : ''}`,
+      ...r.matches.map((m) => `   vs ${m.opponent}${m.score_for != null ? ` ${m.score_for}–${m.score_against}` : ''}${m.stage ? ` (${m.stage})` : ''}${m.match_date ? `, ${m.match_date}` : ''}`),
+    ].join('\n')).join('\n'),
   }
 }
 
@@ -188,13 +219,22 @@ export async function importTeam(db, t) {
     const { error: e2 } = await supabase.from('team_memberships').upsert({ player_id: p.id, team_id: team.id, role: s.role || null }, { onConflict: 'player_id,team_id' })
     if (e2) throw new Error(e2.message)
   }
-  const have = new Set((db.teamAchByTeam?.[team.id] || []).map((a) => a.title.toLowerCase()))
-  const ach = t.achievements.filter((a) => !have.has(a.title.trim().toLowerCase())).map((a) => ({ team_id: team.id, title: a.title.trim(), finish: a.finish || null, source: t.source || null }))
-  if (ach.length) {
-    const { error: e3 } = await supabase.from('team_achievements').insert(ach)
-    if (e3) throw new Error(e3.message)
+  // Season results: one row per competition (all results kept; podium finishes show as achievements), plus its matches
+  const have = new Set((db.storedResultsByTeam?.[team.id] || []).map((a) => a.title.toLowerCase()))
+  let matches = 0
+  for (const r of t.results || []) {
+    if (r.finish && !have.has(r.title.toLowerCase())) {
+      const { error: e3 } = await supabase.from('team_achievements').insert({ team_id: team.id, title: r.title, finish: r.finish, source: t.source || null })
+      if (e3) throw new Error(e3.message)
+      have.add(r.title.toLowerCase())
+    }
+    for (const m of r.matches || []) {
+      await importMatch(db, { ...m, age_group: t.age_group, season: +t.season, competition: r.title === 'Friendly' ? null : r.title,
+        competition_kind: trophyFor(r.title) ? 'Trophy match' : 'Tournament', source: t.source })
+      matches++
+    }
   }
-  return { team, added }
+  return { team, added, matches }
 }
 
 // Editors only: save a player with all his teams and achievements. Reuses an existing player
@@ -321,4 +361,61 @@ export async function importMatch(db, m) {
     team_id: team.id, opponent_id: opp.id, venue_id: venue?.id || null, tournament_id: comp?.id || null, match_date: m.match_date,
     score_for: m.score_for, score_against: m.score_against, stage: m.stage, notes, source: m.source || null,
   })
+}
+
+// ---------- Admin editing helpers ----------
+export { findOrCreate }
+
+export async function ensureTeam(age_group, season) {
+  const { data, error } = await supabase.from('teams').upsert({ age_group, season: +season }, { onConflict: 'age_group,season' }).select().single()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function upsertRow(table, row, onConflict) {
+  if (demoMode) throw new Error('Demo mode: connect Supabase to save data.')
+  const { data, error } = await supabase.from(table).upsert(row, { onConflict }).select().single()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+// Move everything from one player record to another, then delete the duplicate.
+export async function mergePlayers(db, keepId, dupId) {
+  if (demoMode) throw new Error('Demo mode: connect Supabase to merge players.')
+  if (keepId === dupId) throw new Error('Choose a different player.')
+  const ok = (r) => { if (r.error) throw new Error(r.error.message); return r.data }
+  const keepTeams = new Map((db.membershipsByPlayer[keepId] || []).map((m) => [m.team_id, m]))
+  for (const m of db.membershipsByPlayer[dupId] || []) {
+    const k = keepTeams.get(m.team_id)
+    if (k) {
+      if (!k.role && m.role) ok(await supabase.from('team_memberships').update({ role: m.role }).eq('id', k.id))
+      ok(await supabase.from('team_memberships').delete().eq('id', m.id))
+    } else ok(await supabase.from('team_memberships').update({ player_id: keepId }).eq('id', m.id))
+  }
+  const keepMatches = new Set(db.match_players.filter((x) => x.player_id === keepId).map((x) => x.match_id))
+  for (const x of db.match_players.filter((x) => x.player_id === dupId)) {
+    if (keepMatches.has(x.match_id)) ok(await supabase.from('match_players').delete().eq('match_id', x.match_id).eq('player_id', dupId))
+    else ok(await supabase.from('match_players').update({ player_id: keepId }).eq('match_id', x.match_id).eq('player_id', dupId))
+  }
+  ok(await supabase.from('achievements').update({ player_id: keepId }).eq('player_id', dupId))
+  ok(await supabase.from('goals').update({ player_id: keepId }).eq('player_id', dupId))
+  const { data: kc } = await supabase.from('contacts').select('player_id').eq('player_id', keepId).maybeSingle()
+  if (!kc) ok(await supabase.from('contacts').update({ player_id: keepId }).eq('player_id', dupId))
+  const keep = db.player[keepId], dup = db.player[dupId], fill = {}
+  for (const k of ['known_as', 'joined_year', 'batch', 'bio', 'residence_country']) if (keep[k] == null && dup[k] != null) fill[k] = dup[k]
+  if (!keep.other_sports?.length && dup.other_sports?.length) fill.other_sports = dup.other_sports
+  if (Object.keys(fill).length) ok(await supabase.from('players').update(fill).eq('id', keepId))
+  ok(await supabase.from('players').delete().eq('id', dupId))
+}
+
+// Signed-in user (or null), kept up to date.
+export function useSession() {
+  const [s, setS] = _useState(null)
+  _useEffect(() => {
+    if (demoMode) return
+    supabase.auth.getSession().then(({ data }) => setS(data.session))
+    const { data } = supabase.auth.onAuthStateChange((_e, x) => setS(x))
+    return () => data.subscription.unsubscribe()
+  }, [])
+  return s
 }
