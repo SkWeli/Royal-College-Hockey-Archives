@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
 import { EditLink } from '../components.jsx'
-import { result } from '../data/db.js'
+import { onPenalties, result, scoreText } from '../data/db.js'
 import { PlayerLink, TeamLink } from '../components.jsx'
 
 export default function MatchPage() {
@@ -17,6 +17,7 @@ export default function MatchPage() {
       <EditLink to={`/admin/match/${id}`} />
       <p className="muted"><TeamLink db={db} t={db.team[m.team_id]} />{tr && ` · ${tr.name}`}{m.stage && ` · ${m.stage}`}</p>
       <h1>Royal College {m.score_for ?? '?'} – {m.score_against ?? '?'} {o ? <Link to={`/opponents/${o.id}`}>{o.name}</Link> : 'Unknown opponent'} {r && <span className={`res ${r}`}>({r})</span>}</h1>
+      {onPenalties(m) && <p className="pill gold" style={{ fontSize: '.95rem' }}>{scoreText(m).split(' · ')[1].replace(/^./, (c) => c.toUpperCase())}</p>}
       <p className="muted">{m.match_date || 'Date unknown'}{v && <> · <Link to={`/venues/${v.id}`}>{v.name}</Link>{v.surface ? ` (${v.surface})` : ''}</>}</p>
       {m.notes && <p>{m.notes}</p>}
       <h2>Goals</h2>

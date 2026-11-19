@@ -1,5 +1,5 @@
-import { DidYouMean } from './components.jsx'
-import { AGE_GROUPS, ageLabel, COUNTRIES, KNOWN_COACHES, competitionsFor, isAchievement, resultsFor, rolesFor, trophyFor } from './data/db.js'
+import { DidYouMean, PenaltyFields } from './components.jsx'
+import { AGE_GROUPS, ageLabel, COUNTRIES, KNOWN_COACHES, competitionsFor, isAchievement, penaltyData, penaltyErrors, resultsFor, rolesFor, trophyFor } from './data/db.js'
 
 // Shared by the public Submit form and the admin team form.
 // value = { age_group, season, coach, newCoach, squad: [{ name, batch, role, country }],
@@ -7,7 +7,7 @@ import { AGE_GROUPS, ageLabel, COUNTRIES, KNOWN_COACHES, competitionsFor, isAchi
 // custom: the competition was typed in rather than picked from the list.
 export const emptyTeam = () => ({ age_group: '', season: '', coach: '', newCoach: '', squad: [], results: [] })
 const emptyResult = () => ({ title: '', custom: false, finish: '', matches: [] })
-const emptyGame = (opponent = '') => ({ opponent, match_date: '', stage: '', score_for: '', score_against: '' })
+const emptyGame = (opponent = '') => ({ opponent, match_date: '', stage: '', score_for: '', score_against: '', decided_by: '', pen_for: '', pen_against: '' })
 const NEW = '__new'
 const thisYear = new Date().getFullYear()
 
@@ -58,6 +58,7 @@ export function validateTeam(t) {
       if ((m.score_for === '') !== (m.score_against === '')) errs.push(`${ml}: enter both scores, or leave both empty`)
       for (const k of ['score_for', 'score_against']) if (m[k] !== '' && (!Number.isInteger(+m[k]) || +m[k] < 0 || +m[k] > 50)) errs.push(`${ml}: ${m[k]} isn't a valid score`)
       if (m.match_date && t.season && +m.match_date.slice(0, 4) !== +t.season) errs.push(`${ml}: the date isn't in ${t.season}`)
+      errs.push(...penaltyErrors(m, `${ml}: `))
     })
   })
   return errs
@@ -70,7 +71,7 @@ export const teamData = (t) => ({
   results: t.results.map((r) => ({
     title: r.title.trim(), finish: r.finish || null,
     matches: r.matches.map((m) => ({ opponent: m.opponent.trim(), match_date: m.match_date || null, stage: m.stage.trim() || null,
-      score_for: m.score_for === '' ? null : +m.score_for, score_against: m.score_against === '' ? null : +m.score_against })),
+      score_for: m.score_for === '' ? null : +m.score_for, score_against: m.score_against === '' ? null : +m.score_against, ...penaltyData(m) })),
   })),
 })
 // Saved data back into the form (for admin review).
@@ -80,7 +81,7 @@ export const teamForm = (d) => ({
   // older submissions used "achievements" without matches
   results: (d.results || d.achievements || []).map((r) => ({
     title: r.title || '', finish: r.finish || '', custom: !!r.title && r.title !== 'Friendly' && !isListed(d.age_group, r.title),
-    matches: (r.matches || []).map((m) => ({ opponent: m.opponent || '', match_date: m.match_date || '', stage: m.stage || '', score_for: m.score_for ?? '', score_against: m.score_against ?? '' })),
+    matches: (r.matches || []).map((m) => ({ opponent: m.opponent || '', match_date: m.match_date || '', stage: m.stage || '', score_for: m.score_for ?? '', score_against: m.score_against ?? '', decided_by: m.decided_by || '', pen_for: m.pen_for ?? '', pen_against: m.pen_against ?? '' })),
   })),
 })
 
@@ -183,6 +184,7 @@ export default function TeamFields({ value: t, onChange, db }) {
                           <input type="number" inputMode="numeric" min="0" placeholder="–" aria-label={`Match ${j + 1} Royal goals`} value={m.score_for} onChange={(e) => setM(j, { score_for: e.target.value })} />
                           <input type="number" inputMode="numeric" min="0" placeholder="–" aria-label={`Match ${j + 1} opponent goals`} value={m.score_against} onChange={(e) => setM(j, { score_against: e.target.value })} />
                           <Remove label={`Remove match ${j + 1}`} onClick={() => setR({ matches: r.matches.filter((_, k) => k !== j) })} />
+                          <PenaltyFields compact value={m} onChange={(patch) => setM(j, patch)} />
                         </div>
                       ))}
                     </div>

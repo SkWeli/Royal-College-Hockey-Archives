@@ -80,8 +80,22 @@ export function index(db) {
   }
 }
 
+// How a level match was settled. Empty = the draw stood.
+export const DECIDERS = [['', 'Stayed a draw'], ['Penalty strokes', 'Penalty strokes (PS)'], ['Shoot-out', 'Penalty shoot-out'], ['Sudden death', 'Shoot-out, then sudden death']]
+const DECIDED_AS = { 'Penalty strokes': 'on penalty strokes', 'Shoot-out': 'on shoot-out', 'Sudden death': 'in sudden death' }
+export const onPenalties = (m) => m.score_for != null && m.score_for === m.score_against && !!m.decided_by && m.pen_for != null && m.pen_against != null && m.pen_for !== m.pen_against
+
+// W / D / L. A level match won or lost on penalties counts as a win or a loss.
 export const result = (m) =>
-  m.score_for == null || m.score_against == null ? '' : m.score_for > m.score_against ? 'W' : m.score_for < m.score_against ? 'L' : 'D'
+  m.score_for == null || m.score_against == null ? ''
+    : m.score_for > m.score_against ? 'W' : m.score_for < m.score_against ? 'L'
+    : onPenalties(m) ? (m.pen_for > m.pen_against ? 'W' : 'L') : 'D'
+
+// "2–1", or "1–1 · won 4–3 on shoot-out"
+export const scoreText = (m) => {
+  const base = `${m.score_for ?? '?'}–${m.score_against ?? '?'}`
+  return onPenalties(m) ? `${base} · ${m.pen_for > m.pen_against ? 'won' : 'lost'} ${m.pen_for}–${m.pen_against} ${DECIDED_AS[m.decided_by]}` : base
+}
 
 export const AGE_GROUPS = ['U9', 'U11', 'U13', 'U15', 'U17', '1st XI']
 // Official way to write an age group: U15 → U-15. 1st XI stays as it is.
@@ -106,7 +120,7 @@ const NON_SPORT = new Set(OTHER_ACHIEVEMENTS.map((g) => g.key))
 export const MAX_YEARS = 10
 // Venues offered in every match form (others typed in are added to the archive too).
 export const KNOWN_VENUES = ['Astro Turf, Colombo', 'Astro Turf, Matale', 'Colombo University Grounds', 'Edward Park Hockey Ground, Matale', 'RC Grounds', 'Rajarata University Grounds, Mihintale', 'STC Grounds', 'TCK Grounds', 'WC Grounds']
-export const KNOWN_COACHES = ['Mr. Ashok Peiris', 'Mr. Mulaafar', 'Mr. Rohan Dissanayake', 'Mr. Vasantha de Silva', 'Mr. Damith Panditharatne']
+export const KNOWN_COACHES = ['Mr. Ashok Peiris', 'Mr. Mulaafar', 'Mr. Rohan Dissanayake', 'Mr. Vasantha de Silva']
 // Team competitions by age group. Trophy matches are against one school.
 export const TOURNAMENT_RESULTS = ['Champions', 'Runners-Up', '2nd Runners-Up', '4th Place', 'Quarter-Finals', 'Pre-Quarter-Finals', 'Group Stage']
 export const TROPHY_RESULTS = ['Winners', 'Drawn', 'Lost']
@@ -189,7 +203,7 @@ export function teamSummary(t) {
     Squad: t.squad.map((p) => `${p.name}${p.batch ? ` (Batch of ${p.batch})` : ''}${p.role ? `, ${p.role}` : ''}${p.country && p.country !== 'Sri Lanka' ? `, lives in ${p.country}` : ''}`).join('\n'),
     'Season results': (t.results || []).map((r) => [
       `${r.title}${r.finish ? `: ${r.finish}` : ''}`,
-      ...r.matches.map((m) => `   vs ${m.opponent}${m.score_for != null ? ` ${m.score_for}–${m.score_against}` : ''}${m.stage ? ` (${m.stage})` : ''}${m.match_date ? `, ${m.match_date}` : ''}`),
+      ...r.matches.map((m) => `   vs ${m.opponent}${m.score_for != null ? ` ${scoreText(m)}` : ''}${m.stage ? ` (${m.stage})` : ''}${m.match_date ? `, ${m.match_date}` : ''}`),
     ].join('\n')).join('\n'),
   }
 }
@@ -336,7 +350,7 @@ export async function deleteRow(table, pk, row) {
 // ---------- Matches ----------
 export const matchSummary = (m) => ({
   Team: `${m.age_group} ${m.season}`, Opponent: m.opponent, Date: m.match_date, Competition: m.competition, Stage: m.stage,
-  Score: m.score_for != null ? `Royal ${m.score_for} – ${m.score_against}` : '', Venue: m.venue, Scorers: m.scorers, Notes: m.notes,
+  Score: m.score_for != null ? `Royal ${scoreText(m)}` : '', Venue: m.venue, Scorers: m.scorers, Notes: m.notes,
 })
 
 async function findOrCreate(table, match, row) {
@@ -362,6 +376,7 @@ export async function importMatch(db, m) {
   return insertRow('matches', {
     team_id: team.id, opponent_id: opp.id, venue_id: venue?.id || null, tournament_id: comp?.id || null, match_date: m.match_date,
     score_for: m.score_for, score_against: m.score_against, stage: m.stage, notes, source: m.source || null,
+    decided_by: m.decided_by || null, pen_for: m.pen_for ?? null, pen_against: m.pen_against ?? null,
   })
 }
 
@@ -482,3 +497,16 @@ export function duplicatePairs(players) {
   }
   return out.sort((x, y) => y.score - x.score)
 }
+
+// Checks and clean-up for the penalty fields (used by every match form)
+export const isLevel = (m) => m.score_for !== '' && m.score_for != null && String(m.score_for) === String(m.score_against)
+export function penaltyErrors(m, label = '') {
+  if (!isLevel(m) || !m.decided_by) return []
+  const p = (k) => m[k] !== '' && m[k] != null && Number.isInteger(+m[k]) && +m[k] >= 0
+  if (!p('pen_for') || !p('pen_against')) return [`${label}enter the penalty score (Royal and opponent)`]
+  if (+m.pen_for === +m.pen_against) return [`${label}the penalty score can't be level. If it went to sudden death, include those goals`]
+  return []
+}
+export const penaltyData = (m) => (isLevel(m) && m.decided_by
+  ? { decided_by: m.decided_by, pen_for: +m.pen_for, pen_against: +m.pen_against }
+  : { decided_by: null, pen_for: null, pen_against: null })

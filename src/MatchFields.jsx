@@ -1,8 +1,9 @@
-import { AGE_GROUPS, KNOWN_VENUES, ageLabel, competitionsFor, trophyFor } from './data/db.js'
+import { AGE_GROUPS, KNOWN_VENUES, ageLabel, competitionsFor, penaltyData, penaltyErrors, trophyFor } from './data/db.js'
+import { PenaltyFields } from './components.jsx'
 import { CompetitionSelect } from './TeamFields.jsx'
 
 // Shared by the public Submit form and the admin match form.
-export const emptyMatch = () => ({ age_group: '', season: '', opponent: '', match_date: '', competition: '', customComp: false, stage: '', score_for: '', score_against: '', venue: '', scorers: '', notes: '' })
+export const emptyMatch = () => ({ age_group: '', season: '', opponent: '', match_date: '', competition: '', customComp: false, stage: '', score_for: '', score_against: '', decided_by: '', pen_for: '', pen_against: '', venue: '', scorers: '', notes: '' })
 const thisYear = new Date().getFullYear()
 
 export function validateMatch(m) {
@@ -18,6 +19,7 @@ export function validateMatch(m) {
   for (const [k, l] of [['score_for', 'Royal goals'], ['score_against', 'Opponent goals']]) {
     if (m[k] !== '' && (!Number.isInteger(+m[k]) || +m[k] < 0 || +m[k] > 50)) errs.push(`${l}: ${m[k]} isn't a valid score`)
   }
+  errs.push(...penaltyErrors(m, 'Penalties: '))
   return errs
 }
 
@@ -27,6 +29,7 @@ export const matchData = (m) => ({
   age_group: m.age_group, season: +m.season, opponent: m.opponent.trim(), match_date: m.match_date || null,
   competition: m.competition.trim() || null, competition_kind: kindOf(m), stage: m.stage.trim() || null,
   score_for: m.score_for === '' ? null : +m.score_for, score_against: m.score_against === '' ? null : +m.score_against,
+  ...penaltyData(m),
   venue: m.venue.trim() || null, scorers: m.scorers.trim() || null, notes: m.notes.trim() || null,
 })
 export const matchForm = (d) => ({
@@ -65,6 +68,7 @@ export default function MatchFields({ value: m, onChange, db }) {
         <label>Royal goals<input type="number" inputMode="numeric" min="0" placeholder="2" value={m.score_for} onChange={(e) => set({ score_for: e.target.value })} /></label>
         <label>Opponent goals<input type="number" inputMode="numeric" min="0" placeholder="1" value={m.score_against} onChange={(e) => set({ score_against: e.target.value })} /></label>
       </div>
+      <PenaltyFields value={m} onChange={set} />
       <div className="two">
         <label>Stage (e.g. Final, Semi-final)<input value={m.stage} onChange={(e) => set({ stage: e.target.value })} /></label>
         <label>Venue<input list="known-venues" placeholder="Choose or type a venue" value={m.venue} onChange={(e) => set({ venue: e.target.value })} /></label>

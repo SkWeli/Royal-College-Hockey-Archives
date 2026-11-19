@@ -358,3 +358,9 @@ form.stack label { min-width: 0; }
 .dup-card button { justify-self: start; margin-top: .3rem; padding: .45rem .9rem; font-size: .88rem; }
 .did-you-mean { font-size: .82rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; margin-top: .25rem; }
 .did-you-mean button { padding: .2rem .6rem; font-size: .8rem; border-radius: 999px; }
+.pens { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; padding: .6rem .8rem; border: 1px dashed var(--gold-500); border-radius: 12px; background: var(--gold-100); animation: rise .3s var(--ease) both; }
+.pens input { width: 80px; }
+.pens select { max-width: 260px; }
+.pens.compact { grid-column: 1 / -1; padding: .45rem .6rem; }
+.pens.compact input { width: 66px; padding: .4rem .5rem; }
+.pens label.inline > input { width: 84px !important; } .pens label.inline > select { width: auto !important; min-width: 230px; max-width: 100%; } .pens.compact label.inline > input { width: 68px !important; }

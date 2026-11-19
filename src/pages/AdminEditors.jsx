@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   AGE_GROUPS, COUNTRIES, HOCKEY_ACHIEVEMENTS, KNOWN_COACHES, KNOWN_VENUES, OTHER_ACHIEVEMENTS, SPORTS, ageLabel, batchLabel, competitionsFor,
   deleteRow, duplicatePairs, ensureTeam, findOrCreate, honourLabel, insertRow, isAchievement, mergePlayers, resultsFor, rolesFor, supabase,
-  teamTitle, updateRow, upsertRow, demoMode,
+  teamTitle, updateRow, upsertRow, demoMode, DECIDERS, scoreText,
 } from '../data/db.js'
 import { SearchIcon, initials } from '../components.jsx'
 
@@ -129,7 +129,7 @@ function MatchList({ db, matches }) {
     <div className="result-matches">
       {matches.map((m) => (
         <Link key={m.id} to={`/admin/match/${m.id}`}>
-          vs {db.opponent[m.opponent_id]?.name || '?'} · {m.score_for ?? '?'}–{m.score_against ?? '?'}{m.stage ? ` · ${m.stage}` : ''}{m.match_date ? ` · ${m.match_date}` : ''}
+          vs {db.opponent[m.opponent_id]?.name || '?'} · {scoreText(m)}{m.stage ? ` · ${m.stage}` : ''}{m.match_date ? ` · ${m.match_date}` : ''}
         </Link>
       ))}
     </div>
@@ -391,9 +391,11 @@ export function MatchEditor({ db, id, reload }) {
   ]
   const details2 = [
     { k: 'score_for', label: 'Royal goals', type: 'number' }, { k: 'score_against', label: 'Opp. goals', type: 'number' },
-    { k: 'stage', label: 'Stage' }, { k: 'venue', label: 'Venue', list: [...new Set([...KNOWN_VENUES, ...db.venues.map((v) => v.name)])].sort(), w: 1.5 },
-    { k: 'notes', label: 'Notes', type: 'textarea', w: 2 }, { k: 'source', label: 'Source', w: 1.3 },
+    { k: 'decided_by', label: 'If level, decided by', type: 'select', options: DECIDERS, w: 1.8 },
+    { k: 'pen_for', label: 'Royal pens', type: 'number' }, { k: 'pen_against', label: 'Opp. pens', type: 'number' },
   ]
+  const details3 = [{ k: 'stage', label: 'Stage' }, { k: 'venue', label: 'Venue', list: [...new Set([...KNOWN_VENUES, ...db.venues.map((v) => v.name)])].sort(), w: 1.5 }, { k: 'source', label: 'Source', w: 1.5 }]
+  const details4 = [{ k: 'notes', label: 'Notes', type: 'textarea' }]
   const saveDetails = async (patch) => {
     const out = { ...patch }
     if ('opponent' in patch) { out.opponent_id = patch.opponent ? (await findOrCreate('opponents', { name: patch.opponent }, { name: patch.opponent })).id : null; delete out.opponent }
@@ -402,6 +404,15 @@ export function MatchEditor({ db, id, reload }) {
       const season = db.team[patch.team_id || m.team_id]?.season
       out.tournament_id = patch.competition ? (await findOrCreate('tournaments', { name: patch.competition, season }, { name: patch.competition, season })).id : null
       delete out.competition
+    }
+    // penalties only apply to a level score
+    const sf = 'score_for' in out ? out.score_for : m.score_for, sa = 'score_against' in out ? out.score_against : m.score_against
+    const dec = 'decided_by' in out ? out.decided_by : m.decided_by
+    if (sf == null || sf !== sa || !dec) Object.assign(out, { decided_by: null, pen_for: null, pen_against: null })
+    else {
+      const pf = 'pen_for' in out ? out.pen_for : m.pen_for, pa = 'pen_against' in out ? out.pen_against : m.pen_against
+      if (pf == null || pa == null) throw new Error('Enter the penalty score for both teams.')
+      if (pf === pa) throw new Error("The penalty score can't be level. If it went to sudden death, include those goals.")
     }
     await updateRow('matches', ['id'], m, out)
   }
@@ -417,11 +428,15 @@ export function MatchEditor({ db, id, reload }) {
       <h1>{db.teamLabel(t)} vs {row.opponent || '?'}</h1>
       <p className="muted"><Link to={`/matches/${id}`}>View public page</Link></p>
 
-      <Section title="Match details" hint="Typing a new opponent, venue or competition adds it to the archive.">
+      <Section title="Match details" hint="Typing a new opponent, venue or competition adds it to the archive. For a level score, choose how it was decided and enter the penalties.">
         <Heads fields={details} />
         <EditRow fields={details} row={row} run={run} onSave={saveDetails} />
         <Heads fields={details2} />
         <EditRow fields={details2} row={row} run={run} onSave={saveDetails} />
+        <Heads fields={details3} />
+        <EditRow fields={details3} row={row} run={run} onSave={saveDetails} />
+        <Heads fields={details4} />
+        <EditRow fields={details4} row={row} run={run} onSave={saveDetails} />
       </Section>
 
       <Section title="Goals" count={goals.length} hint="Players in this team's squad are listed first.">
@@ -470,7 +485,7 @@ export function Browse({ db, kind }) {
   }))
   else items = db.matches.map((m) => ({
     id: m.id, to: `/admin/match/${m.id}`, title: `${db.teamLabel(db.team[m.team_id])} vs ${db.opponent[m.opponent_id]?.name || '?'}`,
-    sub: [m.match_date || 'Date unknown', m.score_for != null ? `${m.score_for}–${m.score_against}` : null, db.tournament[m.tournament_id]?.name].filter(Boolean).join(' · '),
+    sub: [m.match_date || 'Date unknown', m.score_for != null ? scoreText(m) : null, db.tournament[m.tournament_id]?.name].filter(Boolean).join(' · '),
     text: `${db.teamLabel(db.team[m.team_id])} ${db.opponent[m.opponent_id]?.name || ''} ${m.match_date || ''} ${db.tournament[m.tournament_id]?.name || ''}`, sort: `${9999 - (db.team[m.team_id]?.season || 0)} ${m.match_date || ''}`,
   }))
   const list = items.filter((x) => !ql || x.text.toLowerCase().includes(ql)).sort((a, b) => a.sort.localeCompare(b.sort))

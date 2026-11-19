@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { result, similarPlayers, useSession } from './data/db.js'
+import { DECIDERS, isLevel, result, scoreText, similarPlayers, useSession } from './data/db.js'
 
 export const PlayerLink = ({ p }) => (p ? <Link to={`/players/${p.id}`}>{p.full_name}</Link> : <span className="muted">Unknown</span>)
 export const TeamLink = ({ db, t }) => (t ? <Link to={`/teams/${t.id}`}>{db.teamLabel(t)}</Link> : null)
@@ -34,7 +34,7 @@ export function MatchTable({ db, matches, showTeam = false }) {
               <td><Link to={`/matches/${m.id}`}>{m.match_date || 'Date unknown'}</Link></td>
               {showTeam && <td><TeamLink db={db} t={db.team[m.team_id]} /></td>}
               <td>{o ? <Link to={`/opponents/${o.id}`}>{o.name}</Link> : '—'}</td>
-              <td>{r && <span className={`res ${r}`}>{r} </span>}{m.score_for ?? '?'}–{m.score_against ?? '?'}</td>
+              <td>{r && <span className={`res ${r}`}>{r} </span>}{scoreText(m)}</td>
               <td>{tr?.name}{m.stage ? ` · ${m.stage}` : ''}</td>
               <td>{v ? <Link to={`/venues/${v.id}`}>{v.name}</Link> : '—'}</td>
             </tr>
@@ -91,6 +91,25 @@ export function DidYouMean({ name, players = [], onPick }) {
       Already in the archive:
       {close.map(({ p }) => <button type="button" key={p.id} className="ghost" onClick={() => onPick(p)}>{p.full_name}{p.batch ? ` (${p.batch})` : ''}</button>)}
       <span>Use it if it's the same person.</span>
+    </div>
+  )
+}
+
+// Shown when the score is level: did the draw stand, or was it settled on penalties?
+export function PenaltyFields({ value: m, onChange, compact = false }) {
+  if (!isLevel(m)) return null
+  return (
+    <div className={`pens ${compact ? 'compact' : ''}`}>
+      <label className="inline">Level score, decided by
+        <select value={m.decided_by || ''} onChange={(e) => onChange({ decided_by: e.target.value })} aria-label="How the level score was decided">
+          {DECIDERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      </label>
+      {m.decided_by && (<>
+        <label className="inline">Royal<input type="number" inputMode="numeric" min="0" value={m.pen_for ?? ''} onChange={(e) => onChange({ pen_for: e.target.value })} aria-label="Royal penalties" /></label>
+        <label className="inline">Opponent<input type="number" inputMode="numeric" min="0" value={m.pen_against ?? ''} onChange={(e) => onChange({ pen_against: e.target.value })} aria-label="Opponent penalties" /></label>
+        {m.decided_by === 'Sudden death' && <span className="small muted">Include the sudden-death goals in the penalty score.</span>}
+      </>)}
     </div>
   )
 }

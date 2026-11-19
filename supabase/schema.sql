@@ -82,6 +82,9 @@ create table matches (
   score_for int,
   score_against int,
   stage text,                          -- 'Final', 'Semi-final', 'Group'
+  decided_by text check (decided_by is null or decided_by in ('Penalty strokes', 'Shoot-out', 'Sudden death')),
+  pen_for int check (pen_for >= 0),     -- penalties, when a level match was decided on them
+  pen_against int check (pen_against >= 0),
   notes text,
   source text                          -- e.g. 'Daily News, 12 Mar 1989'
 );
