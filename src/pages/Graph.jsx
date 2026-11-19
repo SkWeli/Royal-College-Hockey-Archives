@@ -17,8 +17,11 @@ function buildGraph(db, { from, to, showHonours, showOpponents, fullRange }) {
       add(p.id, p.full_name, 'player', `/players/${p.id}`)
       links.push({ source: p.id, target: t.id, captain: m.role === 'Captain' })
     }
+    // One shared dot per tournament or trophy; every team that achieved in it links there, with its result on the link.
     if (showHonours) for (const a of db.podiumByTeam[t.id] || []) {
-      add('ta:' + a.id, `${a.title}: ${a.finish}`, 'achievement'); links.push({ source: t.id, target: 'ta:' + a.id })
+      const key = 'comp:' + a.title.trim().toLowerCase()
+      add(key, a.title.trim(), 'achievement')
+      links.push({ source: t.id, target: key, result: a.finish, win: /^(champions|winners|won|gold star)$/i.test(a.finish || '') })
     }
     if (showOpponents) for (const m of db.matchesByTeam[t.id] || []) {
       const o = db.opponent[m.opponent_id]; if (!o) continue
@@ -64,7 +67,12 @@ export default function Graph() {
       .force('x', d3.forceX(W / 2).strength(0.05)).force('y', d3.forceY(H / 2).strength(0.07))
       .force('collide', d3.forceCollide(14))
     const link = g.append('g').selectAll('line').data(links).join('line')
-      .attr('stroke', (d) => (d.captain ? '#f2c230' : '#8fa0cc')).attr('stroke-width', (d) => (d.captain ? 3 : 1.2)).attr('stroke-opacity', 0.45)
+      .attr('stroke', (d) => (d.captain || d.win ? '#f2c230' : d.result ? '#f08a5d' : '#8fa0cc')).attr('stroke-width', (d) => (d.captain || d.win ? 3 : d.result ? 2 : 1.2)).attr('stroke-opacity', 0.45)
+    link.filter((d) => d.result).append('title').text((d) => d.result)
+    // result written halfway along each team → tournament link
+    const resultText = g.append('g').selectAll('text').data(links.filter((d) => d.result)).join('text')
+      .text((d) => d.result).attr('font-size', 10).attr('text-anchor', 'middle').attr('fill', '#ffd8c4')
+      .attr('paint-order', 'stroke').attr('stroke', '#050f2c').attr('stroke-width', 3).style('pointer-events', 'none')
     const node = g.append('g').selectAll('g').data(nodes).join('g').attr('class', 'node').style('cursor', 'pointer')
       .call(d3.drag()
         .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y })
@@ -75,11 +83,12 @@ export default function Graph() {
 
     // Highlight one node, or several (a search can match many), with everything linked to them.
     const focus = (d) => {
-      if (!d || (Array.isArray(d) && !d.length)) { node.transition().duration(250).style('opacity', 1); link.transition().duration(250).style('opacity', 1); return }
+      if (!d || (Array.isArray(d) && !d.length)) { node.transition().duration(250).style('opacity', 1); link.transition().duration(250).style('opacity', 1); resultText.transition().duration(250).style('opacity', 1); return }
       const picked = new Set((Array.isArray(d) ? d : [d]).map((x) => x.id))
       const nb = new Set(picked)
       links.forEach((l) => { if (picked.has(l.source.id)) nb.add(l.target.id); if (picked.has(l.target.id)) nb.add(l.source.id) })
       node.transition().duration(250).style('opacity', (x) => (nb.has(x.id) ? 1 : 0.12))
+      resultText.transition().duration(250).style('opacity', (l) => (picked.has(l.source.id) || picked.has(l.target.id) ? 1 : 0.06))
       link.transition().duration(250).style('opacity', (l) => (picked.has(l.source.id) || picked.has(l.target.id) ? 1 : 0.04))
       if (Array.isArray(d) && d.length > 1) setInfo(`${d.length} matches, highlighted with their links`)
       else { const one = Array.isArray(d) ? d[0] : d; setInfo(`${one.label}: ${nb.size - 1} connection${nb.size === 2 ? '' : 's'}${one.href ? ' · double-click to open' : ''}`) }
@@ -88,6 +97,7 @@ export default function Graph() {
     node.on('dblclick', (e, d) => d.href && nav(d.href))
     svg.on('click', () => { focus(null); setInfo('Click a dot to highlight its links. Double-click to open its page.') })
     sim.on('tick', () => {
+      resultText.attr('x', (d) => (d.source.x + d.target.x) / 2).attr('y', (d) => (d.source.y + d.target.y) / 2 - 3)
       link.attr('x1', (d) => d.source.x).attr('y1', (d) => d.source.y).attr('x2', (d) => d.target.x).attr('y2', (d) => d.target.y)
       node.attr('transform', (d) => `translate(${d.x},${d.y})`)
     })
@@ -116,7 +126,7 @@ export default function Graph() {
       </div>
       <div className="legend row">
         {Object.entries(COLORS).map(([k, c]) => <span key={k}><i style={{ background: c }} />{k[0].toUpperCase() + k.slice(1)}</span>)}
-        <span><i style={{ background: '#d4a017', borderRadius: 0, height: 3, width: 16 }} />Captain link</span>
+        <span><i style={{ background: '#d4a017', borderRadius: 0, height: 3, width: 16 }} />Captain or win</span>
         <span className="muted" style={{ marginLeft: 'auto' }}>{info}</span>
       </div>
       <svg ref={ref} className="viz dark" viewBox="0 0 1000 640" style={{ height: 'min(70vh, 640px)' }} />
