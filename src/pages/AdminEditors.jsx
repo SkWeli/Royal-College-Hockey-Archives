@@ -314,7 +314,7 @@ export function TeamEditor({ db, id, reload }) {
         }} />
       </Section>
 
-      <Section title="Season results" count={results.length + fromMatches.length} hint="Every tournament and trophy this team played, with its matches. Trophy matches take their result from the score. For a tournament, choose how the team finished. Champions, Runners-Up, 2nd Runners-Up, and Winners or Drawn in trophy matches, show as achievements.">
+      <Section title="Achievements and finishes" count={results.length + fromMatches.length} hint="Every tournament and trophy this team played, with its matches. Trophy matches take their result from the score. For a tournament, choose how the team finished. Champions, Runners-Up, 2nd Runners-Up, and Winners or Drawn in trophy matches, show as achievements.">
         {(results.length + fromMatches.length) > 0 && <Heads lead="" fields={[{ k: 'title', label: 'Tournament or trophy', w: 2 }, { k: 'finish', label: 'Result' }, { k: 'source', label: 'Source' }]} />}
         {results.map((a) => (
           <div key={a.id} className="result-group">
@@ -344,7 +344,7 @@ export function TeamEditor({ db, id, reload }) {
           onAdd={(row) => insertRow('team_achievements', { ...row, team_id: id })} />
       </Section>
 
-      <Section title="Matches" count={matches.length} hint="Open a match to edit its goals and line-up.">
+      <Section title="Season results" count={matches.length} hint="Every match this team played. Open a match to edit its goals and line-up.">
         {matches.length > 0 && <Heads lead="Match" fields={[{ k: 'score_for', label: 'Royal' }, { k: 'score_against', label: 'Opp.' }, { k: 'stage', label: 'Stage' }]} />}
         {matches.map((m) => (
           <EditRow key={m.id} run={run} row={m} lead={<Link to={`/admin/match/${m.id}`}>{m.match_date || 'Date unknown'} vs {db.opponent[m.opponent_id]?.name || '?'}{db.tournament[m.tournament_id] ? ` · ${db.tournament[m.tournament_id].name}` : ''}</Link>}

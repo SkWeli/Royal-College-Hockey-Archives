@@ -2,7 +2,9 @@ import { Link, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
 import { EditLink } from '../components.jsx'
 import { MatchTable, PlayerLink, RecordLine } from '../components.jsx'
-import { batchLabel, isAchievement, result, teamTitle } from '../data/db.js'
+import { batchLabel, isAchievement, teamTitle, trophyFor } from '../data/db.js'
+
+const resultsTrophy = (a) => !!trophyFor(a.title)
 
 // Captain, vice-captain and secretary first; then seniors (earlier batch) first; unknown batch last.
 const ROLE_ORDER = { Captain: 0, 'Vice-captain': 1, Secretary: 2 }
@@ -31,22 +33,19 @@ export default function TeamPage() {
       <EditLink to={`/admin/team/${id}`} />
       <div className="team-title"><div className="eyebrow">Royal College</div><h1>{teamTitle(t)}</h1></div>
       {t.coach && <p className="muted">Coach: {t.coach}</p>}
-      {(db.podiumByTeam[id] || []).map((a) => <span key={a.id} className="pill gold">{a.title}: {a.finish}</span>)}
-      {(db.teamAchByTeam[id] || []).length > 0 && (<>
-        <h2>Season results</h2>
-        <table className="results-table">
-          <thead><tr><th>Tournament or trophy</th><th>Result</th><th>Matches</th></tr></thead>
-          <tbody>{db.teamAchByTeam[id].map((a) => (
-            <tr key={a.id}>
-              <td>{a.title}</td>
-              <td>{!a.finish ? <span className="muted">—</span> : isAchievement(a) ? <span className="pill gold" style={{ margin: 0 }}>{a.finish}</span> : a.finish}</td>
-              <td className="small">{db.matchesFor(a).map((m) => {
-                const r = result(m)
-                return <div key={m.id}><Link to={`/matches/${m.id}`}>{r && <span className={`res ${r}`}>{r}</span>}vs {db.opponent[m.opponent_id]?.name || '?'} {m.score_for ?? '?'}–{m.score_against ?? '?'}</Link>{m.stage ? <span className="muted"> · {m.stage}</span> : ''}</div>
-              })}</td>
-            </tr>
-          ))}</tbody>
-        </table>
+      {(db.podiumByTeam[id] || []).length > 0 && (<>
+        <h2>Achievements</h2>
+        <div className="honour-list stagger" style={{ maxWidth: 720 }}>
+          {db.podiumByTeam[id].map((a, i) => (
+            <div key={a.id} className="honour" style={{ '--i': i }}>
+              <span className="medal" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3" /></svg>
+              </span>
+              <div><b>{a.finish}</b><div className="small muted">{a.title}</div></div>
+              {a.fromMatch && <Link className="small" style={{ marginLeft: 'auto' }} to={`/matches/${a.match_id}`}>View match</Link>}
+            </div>
+          ))}
+        </div>
       </>)}
       <h2>Squad</h2>
       {squad.length ? (
@@ -60,8 +59,13 @@ export default function TeamPage() {
           ))}
         </div>
       ) : <p className="muted">No players recorded yet.</p>}
-      <h2>Matches</h2>
+      <h2>Season results</h2>
       <RecordLine matches={matches} />
+      {(() => {
+        // how the team finished in each tournament (podium finishes are listed under Achievements too)
+        const done = (db.teamAchByTeam[id] || []).filter((a) => a.finish && !a.trophy && !resultsTrophy(a))
+        return done.length > 0 && <p className="small">{done.map((a) => <span key={a.id} className={`pill ${isAchievement(a) ? 'gold' : ''}`}>{a.title}: {a.finish}</span>)}</p>
+      })()}
       <MatchTable db={db} matches={matches} />
       {Object.keys(scorers).length > 0 && (<>
         <h2>Top scorers</h2>
