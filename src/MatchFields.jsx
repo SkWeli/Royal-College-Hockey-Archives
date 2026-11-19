@@ -74,3 +74,32 @@ export default function MatchFields({ value: m, onChange, db }) {
     </>
   )
 }
+
+// Several matches in one go. Each new card copies the team, year and competition from the one before.
+export const emptyMatches = () => [emptyMatch()]
+export const validateMatches = (list) => list.flatMap((m, i) => validateMatch(m).map((e) => (list.length > 1 ? `Match ${i + 1} · ${e}` : e)))
+export const matchesForm = (d) => (d.matches || (d.match ? [d.match] : [])).map(matchForm)
+
+export function MultiMatchFields({ value, onChange, db }) {
+  const set = (i, v) => onChange(value.map((m, j) => (j === i ? v : m)))
+  const addOne = () => {
+    const last = value[value.length - 1] || emptyMatch()
+    onChange([...value, { ...emptyMatch(), age_group: last.age_group, season: last.season, competition: last.competition, customComp: last.customComp, venue: last.venue, opponent: trophyFor(last.competition)?.opponent || '' }])
+  }
+  return (
+    <>
+      {value.map((m, i) => (
+        <fieldset key={i} className="match-card">
+          <legend>
+            <span className="rownum">{i + 1}</span> Match {i + 1}
+            {value.length > 1 && <button type="button" className="ghost small-add" onClick={() => onChange(value.filter((_, j) => j !== i))}>Remove</button>}
+          </legend>
+          <MatchFields db={db} value={m} onChange={(v) => set(i, v)} />
+        </fieldset>
+      ))}
+      <button type="button" className="ghost add-btn" onClick={addOne}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg> Add another match
+      </button>
+    </>
+  )
+}

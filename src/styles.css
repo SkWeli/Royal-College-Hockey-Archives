@@ -27,9 +27,12 @@ h2::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg
 /* ---------- Header ---------- */
 .top { position: sticky; top: 0; z-index: 50; background: rgba(10,26,69,.94); backdrop-filter: saturate(1.4) blur(10px); color: #fff; border-bottom: 2px solid var(--gold-500); }
 .top-inner { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 1rem; padding: .55rem 1.2rem; }
-.brand { color: #fff !important; font-family: var(--serif); font-weight: 700; font-size: 1.15rem; display: flex; align-items: center; gap: .65rem; white-space: nowrap; }
-.brand:hover .crest { transform: rotate(-6deg) scale(1.06); }
-.crest { height: 42px; width: auto; transition: transform .4s var(--ease); }
+/* Crest and name lift towards you on hover: a little larger, with a soft shadow underneath */
+.brand { color: #fff !important; font-family: var(--serif); font-weight: 700; font-size: 1.15rem; display: flex; align-items: center; gap: .65rem; white-space: nowrap;
+  transform-origin: left center; transition: transform .35s var(--ease), text-shadow .35s var(--ease); }
+.brand:hover { transform: perspective(600px) translateZ(14px) translateY(-1px); text-shadow: 0 6px 14px rgba(0,0,0,.45); }
+.crest { height: 42px; width: auto; transition: filter .35s var(--ease); }
+.brand:hover .crest { filter: drop-shadow(0 6px 8px rgba(0,0,0,.5)); }
 .crest-fallback { width: 34px; height: 34px; border-radius: 50%; background: var(--gold-500); display: grid; place-items: center; color: var(--navy-900); font-size: .8rem; font-family: var(--serif); }
 .top nav { display: flex; gap: .2rem; margin-left: auto; }
 .top nav a { position: relative; color: #dfe5f5; padding: .55rem .85rem; border-radius: 8px; font-weight: 500; font-size: .95rem; transition: color .2s, background .2s; }
@@ -346,3 +349,7 @@ form.stack label { min-width: 0; }
 .warn { color: var(--gold-600); font-weight: 600; }
 .results-table { max-width: 920px; }
 .results-table td div + div { margin-top: .2rem; }
+.match-card { border: 1.5px solid var(--border); border-radius: 14px; padding: .4rem 1rem 1rem; margin: 0; display: grid; gap: .9rem; min-width: 0; animation: rise .3s var(--ease) both; }
+.match-card legend { display: flex; align-items: center; gap: .5rem; padding: 0 .4rem; font-family: var(--serif); font-weight: 700; color: var(--navy-800); }
+.match-card legend .rownum { margin-top: 0; }
+.match-card legend .small-add { margin-left: .4rem; font-family: 'Inter', sans-serif; }

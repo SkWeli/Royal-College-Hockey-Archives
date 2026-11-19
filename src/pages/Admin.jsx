@@ -4,7 +4,7 @@ import { useData } from '../App.jsx'
 import { Browse, MatchEditor, PlayerEditor, TeamEditor } from './AdminEditors.jsx'
 import { batchLabel, demoMode, importMatch, importPlayer, importTeam, insertRow, listSubmissions, setSubmissionStatus, supabase } from '../data/db.js'
 import DataEditor from './DataEditor.jsx'
-import MatchFields, { emptyMatch, matchData, matchForm, validateMatch } from '../MatchFields.jsx'
+import { MultiMatchFields, emptyMatches, matchData, matchesForm, validateMatches } from '../MatchFields.jsx'
 import TeamFields, { emptyTeam, teamData, teamForm, validateTeam } from '../TeamFields.jsx'
 import HistoryFields, { PlayerBasics, emptyHistory, normalizeHistory, emptyPlayer, playerRow, validateHistory, validatePlayer } from '../HistoryFields.jsx'
 
@@ -136,31 +136,36 @@ function TeamForm({ db, onSaved, initial, onDone }) {
   )
 }
 
-// Add a match. Its team, opponent, venue and competition are created if new.
+// Add one or more matches. Their team, opponent, venue and competition are created if new.
 function MatchForm({ db, onSaved, initial, onDone }) {
-  const [match, setMatch] = useState(initial?.match ? matchForm(initial.match) : emptyMatch())
+  const [matches, setMatches] = useState(initial ? matchesForm(initial) : emptyMatches())
   const [source, setSource] = useState(initial?.source || '')
   const [st, setSt] = useState({})
   const save = async (e) => {
     e.preventDefault()
-    const errs = validateMatch(match)
+    const errs = validateMatches(matches)
     if (errs.length) { setSt({ errs }); setTimeout(() => document.querySelector('.errors')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); return }
     setSt({ busy: true })
+    let saved = 0
     try {
-      await importMatch(db, { ...matchData(match), source: source.trim() })
-      setSt({ ok: `Saved ${match.age_group} ${match.season} vs ${match.opponent}.` }); setMatch(emptyMatch()); setSource('')
+      for (const m of matches) { await importMatch(db, { ...matchData(m), source: source.trim() }); saved++ }
+      setSt({ ok: `Saved ${saved} match${saved === 1 ? '' : 'es'}.` }); setMatches(emptyMatches()); setSource('')
       onSaved(); onDone?.()
-    } catch (err) { setSt({ err: err.message }) }
+    } catch (err) {
+      // keep the ones not yet saved on screen, so nothing is entered twice
+      setMatches(matches.slice(saved)); if (saved) onSaved()
+      setSt({ err: `${saved ? `Saved ${saved}, then stopped: ` : ''}${err.message}` })
+    }
   }
   return (
     <form className="stack" onSubmit={save} style={{ maxWidth: 'none' }}>
-      <MatchFields db={db} value={match} onChange={(v) => { setMatch(v); setSt({}) }} />
+      <MultiMatchFields db={db} value={matches} onChange={(v) => { setMatches(v); setSt({}) }} />
       <label>Source (who told us, or where it's from)<input value={source} onChange={(e) => setSource(e.target.value)} /></label>
       {st.errs && <div className="errors" role="alert">Please fix these:<ul>{st.errs.map((x) => <li key={x}>{x}</li>)}</ul></div>}
-      <button className="gold" disabled={st.busy}>{st.busy ? 'Saving…' : 'Save match'}</button>
+      <button className="gold" disabled={st.busy}>{st.busy ? 'Saving…' : matches.length > 1 ? `Save ${matches.length} matches` : 'Save match'}</button>
       {st.err && <p className="error small">{st.err}</p>}
       {st.ok && <p className="ok small">{st.ok}</p>}
-      <p className="small muted">Goalscorers are saved in the match notes. To link goals to players, add them in the Goal tab.</p>
+      <p className="small muted">Goalscorers are saved in the match notes. To link goals to players, open the match from the Matches tab.</p>
     </form>
   )
 }
@@ -200,8 +205,8 @@ function Submissions({ db, onSaved }) {
           {open === r.id && (
             <div className="form-card" style={{ marginTop: '1rem', maxWidth: 'none' }}>
               <p className="small muted">Check and correct the details, then save. The submission is marked approved once saved.</p>
-              {r.details._data.match
-                ? <MatchForm db={db} onSaved={onSaved} onDone={() => { setOpen(null); mark(r, 'approved') }} initial={{ match: r.details._data.match, source: `Submitted by ${r.submitter_name}` }} />
+              {(r.details._data.matches || r.details._data.match)
+                ? <MatchForm db={db} onSaved={onSaved} onDone={() => { setOpen(null); mark(r, 'approved') }} initial={{ ...r.details._data, source: `Submitted by ${r.submitter_name}` }} />
                 : r.details._data.team
                 ? <TeamForm db={db} onSaved={onSaved} onDone={() => { setOpen(null); mark(r, 'approved') }} initial={{ team: r.details._data.team, source: `Submitted by ${r.submitter_name}` }} />
                 : <PlayerForm db={db} onSaved={onSaved} onDone={() => { setOpen(null); mark(r, 'approved') }}
@@ -215,7 +220,7 @@ function Submissions({ db, onSaved }) {
 }
 
 const TABS = ['Submissions', 'Players', 'Teams', 'Matches', 'Add new', 'All data']
-const ADD = ['Player', 'Team', 'Match', 'Opponent', 'Venue', 'Competition', 'Club milestone']
+const ADD = ['Player', 'Team', 'Matches', 'Opponent', 'Venue', 'Competition', 'Club milestone']
 
 export default function Admin() {
   const { db, reload } = useData()
@@ -260,7 +265,7 @@ export default function Admin() {
           </div>
           {add === 'Player' ? card(<PlayerForm db={db} onSaved={reload} />)
             : add === 'Team' ? card(<TeamForm db={db} onSaved={reload} />)
-            : add === 'Match' ? card(<MatchForm db={db} onSaved={reload} />)
+            : add === 'Matches' ? card(<MatchForm db={db} onSaved={reload} />)
             : card(<EntryForm key={add} spec={forms[add]} onSaved={reload} />)}
         </>)}
     </>
