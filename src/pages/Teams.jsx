@@ -3,7 +3,7 @@ import { useData } from '../App.jsx'
 import { AGE_GROUPS, ageLabel } from '../data/db.js'
 
 // The gold star is only for winning the All-Island or the National Schools championship.
-const STAR_EVENTS = ['All-Island Schools Hockey Championship', 'National Schools Knockout Tournament']
+const STAR_EVENTS = ['All-Island Schools Hockey Championship', 'All-Island National Schools Games']
 const wonStar = (results = []) => results.filter((a) => a.finish === 'Champions' && STAR_EVENTS.includes(a.title))
 
 export default function Teams() {
