@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { result } from './data/db.js'
+import { result, useSession } from './data/db.js'
 
 export const PlayerLink = ({ p }) => (p ? <Link to={`/players/${p.id}`}>{p.full_name}</Link> : <span className="muted">Unknown</span>)
 export const TeamLink = ({ db, t }) => (t ? <Link to={`/teams/${t.id}`}>{db.teamLabel(t)}</Link> : null)
@@ -68,3 +68,14 @@ export const initials = (name = '') => name.replace(/\(.*?\)/g, '').trim().split
 export const SearchIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
 )
+
+// "Edit" button for signed-in admins, shown on public player, team and match pages.
+export function EditLink({ to }) {
+  const session = useSession()
+  if (!session) return null
+  return (
+    <Link className="btn gold edit-link" to={to}>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg> Edit
+    </Link>
+  )
+}

@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
+import { EditLink } from '../components.jsx'
 import { MatchTable, PlayerLink, RecordLine } from '../components.jsx'
 import { batchLabel, isAchievement, teamTitle } from '../data/db.js'
 
@@ -27,6 +28,7 @@ export default function TeamPage() {
         {sameGroup[i - 1] && <Link to={`/teams/${sameGroup[i - 1].id}`}>← {db.teamLabel(sameGroup[i - 1])}</Link>}
         {sameGroup[i + 1] && <Link style={{ marginLeft: 'auto' }} to={`/teams/${sameGroup[i + 1].id}`}>{db.teamLabel(sameGroup[i + 1])} →</Link>}
       </div>
+      <EditLink to={`/admin/team/${id}`} />
       <div className="team-title"><div className="eyebrow">Royal College</div><h1>{teamTitle(t)}</h1></div>
       {t.coach && <p className="muted">Coach: {t.coach}</p>}
       {(db.podiumByTeam[id] || []).map((a) => <span key={a.id} className="pill gold">{a.title}: {a.finish}</span>)}

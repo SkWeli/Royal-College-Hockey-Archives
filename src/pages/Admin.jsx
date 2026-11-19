@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
+import { Browse, MatchEditor, PlayerEditor, TeamEditor } from './AdminEditors.jsx'
 import { batchLabel, demoMode, importMatch, importPlayer, importTeam, insertRow, listSubmissions, setSubmissionStatus, supabase } from '../data/db.js'
 import DataEditor from './DataEditor.jsx'
 import MatchFields, { emptyMatch, matchData, matchForm, validateMatch } from '../MatchFields.jsx'
@@ -7,36 +9,32 @@ import TeamFields, { emptyTeam, teamData, teamForm, validateTeam } from '../Team
 import HistoryFields, { PlayerBasics, emptyHistory, normalizeHistory, emptyPlayer, playerRow, validateHistory, validatePlayer } from '../HistoryFields.jsx'
 
 // Each form: table name + fields. type 'ref' renders a dropdown of existing rows.
-const FORMS = (db) => {
-  const players = db.players.map((p) => [p.id, `${p.full_name}${p.batch ? ` (${batchLabel(p)})` : ''}`]).sort((a, b) => a[1].localeCompare(b[1]))
-  const teams = db.teams.map((t) => [t.id, db.teamLabel(t)]).sort((a, b) => a[1].localeCompare(b[1]))
-  const list = (rows) => rows.map((r) => [r.id, r.name])
+const FORMS = () => {
   return {
-    'Player in team': { table: 'team_memberships', fields: [['player_id', 'Player', players, true], ['team_id', 'Team', teams, true], ['role', 'Role (Secretary: 1st XI only)', [['', 'Player'], ['Captain', 'Captain'], ['Vice-captain', 'Vice-captain'], ['Secretary', 'Secretary']]], ['position', 'Position']] },
-    'Player achievement': { table: 'achievements', fields: [['player_id', 'Player', players, true], ['title', 'Achievement (Royal Colours, Colombo Schools Colours, National Colours, Royal Crown, or your own)', 'text', true], ['sport', 'Sport (leave blank for Hockey)', 'text'], ['level', 'Level (Royal Colours only, e.g. 1st Year)'], ['role', 'Role (e.g. Captain (Reds), Head Prefect)'], ['season', 'Season', 'number'], ['source', 'Source (who told us / where)']] },
-    Goal: { table: 'goals', fields: [['match_id', 'Match', db.matches.map((m) => [m.id, `${m.match_date || '?'} ${db.teamLabel(db.team[m.team_id])} vs ${db.opponent[m.opponent_id]?.name || '?'}`]), true], ['player_id', 'Scorer', players], ['minute', 'Minute', 'number'], ['kind', 'Type', [['', '—'], ['Field goal', 'Field goal'], ['Penalty corner', 'Penalty corner'], ['Penalty stroke', 'Penalty stroke']]]] },
     Opponent: { table: 'opponents', fields: [['name', 'School or club', 'text', true]] },
     Venue: { table: 'venues', fields: [['name', 'Name', 'text', true], ['city', 'City'], ['surface', 'Surface', [['', '—'], ['Grass', 'Grass'], ['Astro', 'Astro']]]] },
-    Competition: { table: 'tournaments', fields: [['name', 'Name', 'text', true], ['level', 'Level', [['', '—'], ['League', 'League'], ['All-Island', 'All-Island'], ['Big match', 'Big match'], ['Friendly', 'Friendly']]], ['season', 'Season', 'number']] },
+    Competition: { table: 'tournaments', fields: [['name', 'Name', 'text', true], ['level', 'Type', [['', '—'], ['Tournament', 'Tournament'], ['Trophy match', 'Trophy match'], ['Friendly', 'Friendly']]], ['season', 'Season', 'number']] },
     'Club milestone': { table: 'milestones', fields: [['season', 'Season', 'number', true], ['event_date', 'Exact date', 'date'], ['title', 'What happened', 'text', true], ['details', 'Details', 'textarea'], ['source', 'Source']] },
-    'Contact (private)': { table: 'contacts', fields: [['player_id', 'Player', players, true], ['phone', 'Phone'], ['email', 'Email'], ['city', 'City'], ['consent', 'They agreed to share this with members', 'checkbox', true]] },
   }
 }
 
 function Login() {
-  const [email, setEmail] = useState(''), [msg, setMsg] = useState('')
+  const [email, setEmail] = useState(''), [password, setPassword] = useState(''), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false)
   const send = async (e) => {
     e.preventDefault()
-    if (!email.includes('@')) return setMsg('Enter a valid email address.')
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href } })
-    setMsg(error ? error.message : 'Check your email for a sign-in link.')
+    if (!email.includes('@') || !password) return setMsg('Enter your email and password.')
+    setBusy(true)
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    setBusy(false)
+    if (error) setMsg('Wrong email or password.')
   }
   return (
-    <form className="stack form-card" onSubmit={send}>
-      <p className="muted">Admin sign-in. Sends a one-time link to your email.</p>
-      <label>Email<input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setMsg('') }} placeholder="name@example.com" /></label>
-      <button>Send sign-in link</button>
-      {msg && <p className="small">{msg}</p>}
+    <form className="stack form-card" onSubmit={send} style={{ maxWidth: 440 }}>
+      <p className="muted">Admin sign-in</p>
+      <label>Email<input type="email" autoComplete="username" value={email} onChange={(e) => { setEmail(e.target.value); setMsg('') }} /></label>
+      <label>Password<input type="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setMsg('') }} /></label>
+      <button className="gold" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+      {msg && <p className="error small">{msg}</p>}
     </form>
   )
 }
@@ -216,34 +214,55 @@ function Submissions({ db, onSaved }) {
   )
 }
 
+const TABS = ['Submissions', 'Players', 'Teams', 'Matches', 'Add new', 'All data']
+const ADD = ['Player', 'Team', 'Match', 'Opponent', 'Venue', 'Competition', 'Club milestone']
+
 export default function Admin() {
   const { db, reload } = useData()
+  const { kind, id } = useParams()
+  const nav = useNavigate()
   const [session, setSession] = useState(null)
-  const [tab, setTab] = useState('Submissions')
+  const [tab, setTab] = useState(() => { try { return sessionStorage.getItem('admin-tab') || 'Submissions' } catch { return 'Submissions' } })
+  const [add, setAdd] = useState('Player')
   useEffect(() => {
     if (demoMode) return
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => data.subscription.unsubscribe()
   }, [])
-  const forms = { Submissions: null, Data: null, Player: null, Team: null, Match: null, ...FORMS(db) }
+  const pick = (t) => { setTab(t); try { sessionStorage.setItem('admin-tab', t) } catch { /* private mode */ } if (kind) nav('/admin') }
+  const forms = FORMS()
+  const card = (el) => <div className="form-card" style={{ maxWidth: 1040 }}>{el}</div>
+
+  if (!demoMode && !session) return (<><h1>Admin</h1><Login /></>)
   return (
     <>
-      <h1>Admin</h1>
-      {demoMode && <p className="demo" style={{ borderRadius: 8 }}>You can try the forms, but saving needs Supabase connected (see README).</p>}
-      {!demoMode && !session ? <Login /> : (
-        <>
-          {session && <p className="small muted">Signed in as {session.user.email} · <a href="#" onClick={(e) => { e.preventDefault(); supabase.auth.signOut() }}>Sign out</a></p>}
-          <p className="small muted">Tip: add the team and opponent first, then the match, then its goals.</p>
-          <div className="tabs">{Object.keys(forms).map((k) => <button key={k} className={k === tab ? 'on' : 'ghost'} onClick={() => setTab(k)}>{k}</button>)}</div>
-          {tab === 'Submissions' ? <Submissions db={db} onSaved={reload} />
-            : tab === 'Data' ? <DataEditor db={db} onChanged={reload} />
-            : tab === 'Player' ? <div className="form-card" style={{ maxWidth: 1040 }}><PlayerForm db={db} onSaved={reload} /></div>
-            : tab === 'Team' ? <div className="form-card" style={{ maxWidth: 1040 }}><TeamForm db={db} onSaved={reload} /></div>
-            : tab === 'Match' ? <div className="form-card" style={{ maxWidth: 1040 }}><MatchForm db={db} onSaved={reload} /></div>
-            : <div className="form-card"><EntryForm key={tab} spec={forms[tab]} onSaved={reload} /></div>}
-        </>
-      )}
+      <div className="row" style={{ marginBottom: '.4rem' }}>
+        <h1 style={{ margin: 0 }}>Admin</h1>
+        {session && <span className="small muted" style={{ marginLeft: 'auto' }}>Signed in as {session.user.email} · <a href="#" onClick={(e) => { e.preventDefault(); supabase.auth.signOut() }}>Sign out</a></span>}
+      </div>
+      {demoMode && <p className="demo" style={{ borderRadius: 8 }}>Demo mode: you can look around, but saving needs Supabase connected.</p>}
+      <div className="tabs">{TABS.map((k) => <button key={k} className={!kind && k === tab ? 'on' : 'ghost'} onClick={() => pick(k)}>{k}</button>)}</div>
+      {kind === 'player' ? <PlayerEditor db={db} id={id} reload={reload} />
+        : kind === 'team' ? <TeamEditor db={db} id={id} reload={reload} />
+        : kind === 'match' ? <MatchEditor db={db} id={id} reload={reload} />
+        : tab === 'Submissions' ? <Submissions db={db} onSaved={reload} />
+        : tab === 'Players' ? <Browse db={db} kind="players" />
+        : tab === 'Teams' ? <Browse db={db} kind="teams" />
+        : tab === 'Matches' ? <Browse db={db} kind="matches" />
+        : tab === 'All data' ? <DataEditor db={db} onChanged={reload} />
+        : (<>
+          <div className="row">
+            <label className="inline">Add a new
+              <select value={add} onChange={(e) => setAdd(e.target.value)}>{ADD.map((a) => <option key={a}>{a}</option>)}</select>
+            </label>
+            <span className="small muted">To change something that's already in the archive, open it from Players, Teams or Matches.</span>
+          </div>
+          {add === 'Player' ? card(<PlayerForm db={db} onSaved={reload} />)
+            : add === 'Team' ? card(<TeamForm db={db} onSaved={reload} />)
+            : add === 'Match' ? card(<MatchForm db={db} onSaved={reload} />)
+            : card(<EntryForm key={add} spec={forms[add]} onSaved={reload} />)}
+        </>)}
     </>
   )
 }

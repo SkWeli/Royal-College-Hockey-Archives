@@ -1,3 +1,4 @@
+import { useEffect as _useEffect, useState as _useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { sample } from './sample.js'
 
@@ -337,4 +338,61 @@ export async function importMatch(db, m) {
     team_id: team.id, opponent_id: opp.id, venue_id: venue?.id || null, tournament_id: comp?.id || null, match_date: m.match_date,
     score_for: m.score_for, score_against: m.score_against, stage: m.stage, notes, source: m.source || null,
   })
+}
+
+// ---------- Admin editing helpers ----------
+export { findOrCreate }
+
+export async function ensureTeam(age_group, season) {
+  const { data, error } = await supabase.from('teams').upsert({ age_group, season: +season }, { onConflict: 'age_group,season' }).select().single()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function upsertRow(table, row, onConflict) {
+  if (demoMode) throw new Error('Demo mode: connect Supabase to save data.')
+  const { data, error } = await supabase.from(table).upsert(row, { onConflict }).select().single()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+// Move everything from one player record to another, then delete the duplicate.
+export async function mergePlayers(db, keepId, dupId) {
+  if (demoMode) throw new Error('Demo mode: connect Supabase to merge players.')
+  if (keepId === dupId) throw new Error('Choose a different player.')
+  const ok = (r) => { if (r.error) throw new Error(r.error.message); return r.data }
+  const keepTeams = new Map((db.membershipsByPlayer[keepId] || []).map((m) => [m.team_id, m]))
+  for (const m of db.membershipsByPlayer[dupId] || []) {
+    const k = keepTeams.get(m.team_id)
+    if (k) {
+      if (!k.role && m.role) ok(await supabase.from('team_memberships').update({ role: m.role }).eq('id', k.id))
+      ok(await supabase.from('team_memberships').delete().eq('id', m.id))
+    } else ok(await supabase.from('team_memberships').update({ player_id: keepId }).eq('id', m.id))
+  }
+  const keepMatches = new Set(db.match_players.filter((x) => x.player_id === keepId).map((x) => x.match_id))
+  for (const x of db.match_players.filter((x) => x.player_id === dupId)) {
+    if (keepMatches.has(x.match_id)) ok(await supabase.from('match_players').delete().eq('match_id', x.match_id).eq('player_id', dupId))
+    else ok(await supabase.from('match_players').update({ player_id: keepId }).eq('match_id', x.match_id).eq('player_id', dupId))
+  }
+  ok(await supabase.from('achievements').update({ player_id: keepId }).eq('player_id', dupId))
+  ok(await supabase.from('goals').update({ player_id: keepId }).eq('player_id', dupId))
+  const { data: kc } = await supabase.from('contacts').select('player_id').eq('player_id', keepId).maybeSingle()
+  if (!kc) ok(await supabase.from('contacts').update({ player_id: keepId }).eq('player_id', dupId))
+  const keep = db.player[keepId], dup = db.player[dupId], fill = {}
+  for (const k of ['known_as', 'joined_year', 'batch', 'bio', 'residence_country']) if (keep[k] == null && dup[k] != null) fill[k] = dup[k]
+  if (!keep.other_sports?.length && dup.other_sports?.length) fill.other_sports = dup.other_sports
+  if (Object.keys(fill).length) ok(await supabase.from('players').update(fill).eq('id', keepId))
+  ok(await supabase.from('players').delete().eq('id', dupId))
+}
+
+// Signed-in user (or null), kept up to date.
+export function useSession() {
+  const [s, setS] = _useState(null)
+  _useEffect(() => {
+    if (demoMode) return
+    supabase.auth.getSession().then(({ data }) => setS(data.session))
+    const { data } = supabase.auth.onAuthStateChange((_e, x) => setS(x))
+    return () => data.subscription.unsubscribe()
+  }, [])
+  return s
 }

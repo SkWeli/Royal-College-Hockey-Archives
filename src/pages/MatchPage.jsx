@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
+import { EditLink } from '../components.jsx'
 import { result } from '../data/db.js'
 import { PlayerLink, TeamLink } from '../components.jsx'
 
@@ -13,6 +14,7 @@ export default function MatchPage() {
   const lineup = db.match_players.filter((x) => x.match_id === id)
   return (
     <>
+      <EditLink to={`/admin/match/${id}`} />
       <p className="muted"><TeamLink db={db} t={db.team[m.team_id]} />{tr && ` · ${tr.name}`}{m.stage && ` · ${m.stage}`}</p>
       <h1>Royal College {m.score_for ?? '?'} – {m.score_against ?? '?'} {o ? <Link to={`/opponents/${o.id}`}>{o.name}</Link> : 'Unknown opponent'} {r && <span className={`res ${r}`}>({r})</span>}</h1>
       <p className="muted">{m.match_date || 'Date unknown'}{v && <> · <Link to={`/venues/${v.id}`}>{v.name}</Link>{v.surface ? ` (${v.surface})` : ''}</>}</p>

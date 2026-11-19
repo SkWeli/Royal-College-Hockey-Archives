@@ -101,6 +101,7 @@ export default function App() {
               <Route path="/timeline" element={<Timeline />} />
               <Route path="/submit" element={<Submit />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/admin/:kind/:id" element={<Admin />} />
               <Route path="*" element={<><h1>Page not found</h1><Link className="btn" to="/">Back to home</Link></>} />
             </Routes>
           </div>
