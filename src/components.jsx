@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { result, useSession } from './data/db.js'
+import { result, similarPlayers, useSession } from './data/db.js'
 
 export const PlayerLink = ({ p }) => (p ? <Link to={`/players/${p.id}`}>{p.full_name}</Link> : <span className="muted">Unknown</span>)
 export const TeamLink = ({ db, t }) => (t ? <Link to={`/teams/${t.id}`}>{db.teamLabel(t)}</Link> : null)
@@ -77,5 +77,20 @@ export function EditLink({ to }) {
     <Link className="btn gold edit-link" to={to}>
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg> Edit
     </Link>
+  )
+}
+
+// Under a name box: if the name isn't in the archive but a very similar one is, offer it.
+export function DidYouMean({ name, players = [], onPick }) {
+  const n = (name || '').trim()
+  if (n.length < 4 || players.some((p) => p.full_name.trim().toLowerCase() === n.toLowerCase())) return null
+  const close = similarPlayers(n, players)
+  if (!close.length) return null
+  return (
+    <div className="did-you-mean" role="status">
+      Already in the archive:
+      {close.map(({ p }) => <button type="button" key={p.id} className="ghost" onClick={() => onPick(p)}>{p.full_name}{p.batch ? ` (${p.batch})` : ''}</button>)}
+      <span>Use it if it's the same person.</span>
+    </div>
   )
 }

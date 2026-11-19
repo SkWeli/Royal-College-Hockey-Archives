@@ -421,3 +421,64 @@ export function useSession() {
   }, [])
   return s
 }
+
+// ---------- Possible duplicate names ----------
+// "Lithira Almeida" / "Litihira Almeida", "M. Rasanga" / "Malith Rasanga", "Chellapah" / "Chellappah".
+const norm = (s) => s.toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim()
+// Letters added, removed, changed, or two neighbouring letters swapped ("Heraht" → "Herath") each count as one.
+function editDistance(a, b, max = 3) {
+  if (Math.abs(a.length - b.length) > max) return max + 1
+  let pp = null, prev = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]; let best = i
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+      if (pp && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) cur[j] = Math.min(cur[j], pp[j - 2] + 1)
+      best = Math.min(best, cur[j])
+    }
+    if (best > max) return max + 1
+    pp = prev; prev = cur
+  }
+  return prev[b.length]
+}
+// How alike two names are: 0 = not alike, higher = more alike. Returns a short reason too.
+export function nameMatch(x, y) {
+  const a = norm(x), b = norm(y)
+  if (!a || !b) return null
+  if (a === b) return { score: 100, why: 'Same name' }
+  const ta = a.split(' '), tb = b.split(' ')
+  // word by word: initials must agree exactly; a word may be off by one letter (two in long words like Ramanathan)
+  if (ta.length === tb.length) {
+    let total = 0, ok = true
+    for (let i = 0; i < ta.length && ok; i++) {
+      if (ta[i] === tb[i]) continue
+      if (ta[i].length === 1 || tb[i].length === 1) { ok = false; break }
+      const d = editDistance(ta[i], tb[i], 2), allow = Math.min(ta[i].length, tb[i].length) >= 8 ? 2 : 1
+      if (d > allow) ok = false; else total += d
+    }
+    if (ok && total) return { score: 90 - total * 10, why: total === 1 ? 'One letter different' : 'Two letters different' }
+  }
+  // same surname, and the rest fits as initials: "M. Rasanga" / "Malith Rasanga", "K. H. Jasinarachchi" / "Krishantha H. Jasinarachchi"
+  const la = ta[ta.length - 1], lb = tb[tb.length - 1]
+  if (la.length > 3 && (la === lb || editDistance(la, lb, 1) <= 1)) {
+    const ra = ta.slice(0, -1), rb = tb.slice(0, -1)
+    const short = ra.length <= rb.length ? ra : rb, long = ra.length <= rb.length ? rb : ra
+    if (short.length && short.every((t, i) => long[i] && (t === long[i] || (t.length === 1 && long[i][0] === t) || (long[i].length === 1 && t[0] === long[i]))))
+      return { score: 60, why: 'Same surname, matching initials' }
+  }
+  return null
+}
+export function similarPlayers(name, players, skipId) {
+  return players.filter((p) => p.id !== skipId).map((p) => ({ p, m: nameMatch(name, p.full_name) }))
+    .filter((x) => x.m && x.m.score < 100).sort((a, b) => b.m.score - a.m.score).slice(0, 3)
+}
+export function duplicatePairs(players) {
+  const out = []
+  for (let i = 0; i < players.length; i++) for (let j = i + 1; j < players.length; j++) {
+    const a = players[i], b = players[j]
+    if (a.batch && b.batch && Math.abs(a.batch - b.batch) > 2) continue // clearly different people
+    const m = nameMatch(a.full_name, b.full_name)
+    if (m) out.push({ a, b, ...m })
+  }
+  return out.sort((x, y) => y.score - x.score)
+}

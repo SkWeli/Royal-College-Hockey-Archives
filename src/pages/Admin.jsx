@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
-import { Browse, MatchEditor, PlayerEditor, TeamEditor } from './AdminEditors.jsx'
+import { Browse, Duplicates, MatchEditor, PlayerEditor, TeamEditor } from './AdminEditors.jsx'
 import { batchLabel, demoMode, importMatch, importPlayer, importTeam, insertRow, listSubmissions, setSubmissionStatus, supabase } from '../data/db.js'
 import DataEditor from './DataEditor.jsx'
 import { MultiMatchFields, emptyMatches, matchData, matchesForm, validateMatches } from '../MatchFields.jsx'
@@ -95,7 +95,7 @@ function PlayerForm({ db, onSaved, initial, onDone }) {
   }
   return (
     <form className="stack" onSubmit={save} style={{ maxWidth: 'none' }}>
-      <PlayerBasics value={player} onChange={(v) => { setPlayer(v); setSt({}) }} bioLabel="Short bio" />
+      <PlayerBasics players={db.players} value={player} onChange={(v) => { setPlayer(v); setSt({}) }} bioLabel="Short bio" />
       <HistoryFields value={history} onChange={(v) => { setHistory(v); setSt({}) }} />
       <label>Source (who told us, or where it's from)<input value={source} onChange={(e) => setSource(e.target.value)} /></label>
       {st.errs && <div className="errors" role="alert">Please fix these:<ul>{st.errs.map((x) => <li key={x}>{x}</li>)}</ul></div>}
@@ -219,7 +219,7 @@ function Submissions({ db, onSaved }) {
   )
 }
 
-const TABS = ['Submissions', 'Players', 'Teams', 'Matches', 'Add new', 'All data']
+const TABS = ['Submissions', 'Players', 'Teams', 'Matches', 'Duplicates', 'Add new', 'All data']
 const ADD = ['Player', 'Team', 'Matches', 'Opponent', 'Venue', 'Competition', 'Club milestone']
 
 export default function Admin() {
@@ -255,6 +255,7 @@ export default function Admin() {
         : tab === 'Players' ? <Browse db={db} kind="players" />
         : tab === 'Teams' ? <Browse db={db} kind="teams" />
         : tab === 'Matches' ? <Browse db={db} kind="matches" />
+        : tab === 'Duplicates' ? <Duplicates db={db} reload={reload} />
         : tab === 'All data' ? <DataEditor db={db} onChanged={reload} />
         : (<>
           <div className="row">

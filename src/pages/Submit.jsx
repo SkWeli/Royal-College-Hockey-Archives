@@ -72,7 +72,7 @@ export default function Submit() {
       <form className="stack" onSubmit={submit}>
         {kind === 'Matches' && <MultiMatchFields db={db} value={matches} onChange={(v) => { setMatches(v); setState({}) }} />}
         {kind === 'Team' && <TeamFields db={db} value={team} onChange={(v) => { setTeam(v); setState({}) }} />}
-        {kind === 'Player' && <><PlayerBasics value={player} onChange={(v) => { setPlayer(v); setState({}) }} /><HistoryFields value={history} onChange={(v) => { setHistory(v); setState({}) }} /></>}
+        {kind === 'Player' && <><PlayerBasics players={db?.players} value={player} onChange={(v) => { setPlayer(v); setState({}) }} /><HistoryFields value={history} onChange={(v) => { setHistory(v); setState({}) }} /></>}
         {fields?.map(([label, req, long]) => (
           <label key={kind + label}>{label}{req ? ' *' : ''}
             {long ? <textarea rows="3" value={vals[label] || ''} onChange={(e) => set(label, e.target.value)} />

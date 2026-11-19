@@ -1,3 +1,4 @@
+import { DidYouMean } from './components.jsx'
 import { AGE_GROUPS, ageLabel, COUNTRIES, HOCKEY_ACHIEVEMENTS, MAX_YEARS, OTHER_ACHIEVEMENTS, SPORTS, SPORT_COLOUR_ROLES, ordinal, rolesFor } from './data/db.js'
 
 // Shared by the public Submit form and the admin player form.
@@ -212,22 +213,26 @@ export const playerRow = (p) => ({
   other_sports: p.other_sports.split(',').map((s) => s.trim()).filter(Boolean), bio: p.bio.trim() || null,
 })
 
-export function PlayerBasics({ value, onChange, bioLabel = 'Anything else about him' }) {
+export function PlayerBasics({ value, onChange, bioLabel = 'Anything else about him', players }) {
   const f = (k) => ({ value: value[k], onChange: (e) => onChange({ ...value, [k]: e.target.value }) })
   return (
     <>
       <div className="two">
-        <label>Full name *<input {...f('full_name')} placeholder="Senuda Weliwatta" /></label>
+        <label>Full name *<input {...f('full_name')} placeholder="Senuda Weliwatta" />
+          <DidYouMean name={value.full_name} players={players} onPick={(p) => onChange({ ...value, full_name: p.full_name, batch: p.batch ?? value.batch, joined_year: p.joined_year ?? value.joined_year })} />
+        </label>
         <label>Known as<input {...f('known_as')} placeholder="Nickname, if any" /></label>
       </div>
       <div className="two">
         <label>Year he joined Royal<input type="number" inputMode="numeric" {...f('joined_year')} placeholder="2008" /></label>
         <label>Batch (year he left Royal)<input type="number" inputMode="numeric" {...f('batch')} placeholder="2021" /></label>
       </div>
-      <label>Country he lives in now
-        <select {...f('residence_country')}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</select>
-      </label>
-      <label>Other sports at Royal (comma separated)<input {...f('other_sports')} placeholder="Boxing, Athletics" /></label>
+      <div className="two">
+        <label>Country he lives in now
+          <select {...f('residence_country')}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</select>
+        </label>
+        <label>Other sports at Royal (comma separated)<input {...f('other_sports')} placeholder="Boxing, Athletics" /></label>
+      </div>
       <label>{bioLabel}<textarea rows="3" {...f('bio')} /></label>
     </>
   )

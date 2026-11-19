@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   AGE_GROUPS, COUNTRIES, HOCKEY_ACHIEVEMENTS, KNOWN_COACHES, KNOWN_VENUES, OTHER_ACHIEVEMENTS, SPORTS, ageLabel, batchLabel, competitionsFor,
-  deleteRow, ensureTeam, findOrCreate, honourLabel, insertRow, isAchievement, mergePlayers, resultsFor, rolesFor, supabase,
+  deleteRow, duplicatePairs, ensureTeam, findOrCreate, honourLabel, insertRow, isAchievement, mergePlayers, resultsFor, rolesFor, supabase,
   teamTitle, updateRow, upsertRow, demoMode,
 } from '../data/db.js'
 import { SearchIcon, initials } from '../components.jsx'
@@ -493,5 +493,51 @@ export function Browse({ db, kind }) {
       {list.length > limit && <button className="ghost add-btn" style={{ marginTop: '1rem' }} onClick={() => setLimit(limit + 60)}>Show more ({list.length - limit} left)</button>}
       {!list.length && <p className="muted">Nothing matches that search.</p>}
     </>
+  )
+}
+
+// ---------- Possible duplicates ----------
+const DISMISS = 'rchc-not-duplicates'
+const readDismissed = () => { try { return new Set(JSON.parse(localStorage.getItem(DISMISS) || '[]')) } catch { return new Set() } }
+
+export function Duplicates({ db, reload }) {
+  const { run, Toast } = useRunner(reload)
+  const [dismissed, setDismissed] = useState(readDismissed)
+  const pairs = useMemo(() => duplicatePairs(db.players), [db.players])
+  const key = (x) => [x.a.id, x.b.id].sort().join('|')
+  const list = pairs.filter((x) => !dismissed.has(key(x)))
+  const dismiss = (x) => {
+    const next = new Set(dismissed); next.add(key(x)); setDismissed(next)
+    try { localStorage.setItem(DISMISS, JSON.stringify([...next])) } catch { /* private mode */ }
+  }
+  const summary = (p) => {
+    const teams = (db.membershipsByPlayer[p.id] || []).map((m) => db.teamLabel(db.team[m.team_id])).filter(Boolean)
+    return [batchLabel(p), teams.length ? teams.join(', ') : 'No teams', `${(db.achievementsByPlayer[p.id] || []).length} achievements`].join(' · ')
+  }
+  const weight = (p) => (db.membershipsByPlayer[p.id] || []).length + (db.achievementsByPlayer[p.id] || []).length + (p.batch ? 1 : 0)
+  return (
+    <div className="editor">
+      <Toast />
+      <p className="lead" style={{ marginBottom: '.6rem' }}>Names that are probably the same person: a letter out of place, or initials and a full name. Pick the record to keep and the other is merged into it. Its teams, achievements, goals and contact move across.</p>
+      {!list.length && <p className="muted">No likely duplicates found.</p>}
+      {list.map((x) => {
+        const [first, second] = weight(x.a) >= weight(x.b) ? [x.a, x.b] : [x.b, x.a]
+        return (
+          <section key={key(x)} className="ed-section dup">
+            <div className="small warn" style={{ marginBottom: '.5rem' }}>{x.why}</div>
+            <div className="dup-grid">
+              {[first, second].map((p, i) => (
+                <div key={p.id} className="dup-card">
+                  <Link to={`/admin/player/${p.id}`}><b>{p.full_name}</b></Link>
+                  <div className="small muted">{summary(p)}</div>
+                  <button className={i === 0 ? 'gold' : 'ghost'} onClick={() => run(() => mergePlayers(db, p.id, (i === 0 ? second : first).id), `Merged into ${p.full_name}.`)}>Keep this one</button>
+                </div>
+              ))}
+            </div>
+            <button className="ghost small-add" style={{ marginTop: '.6rem' }} onClick={() => dismiss(x)}>Not the same person</button>
+          </section>
+        )
+      })}
+    </div>
   )
 }
