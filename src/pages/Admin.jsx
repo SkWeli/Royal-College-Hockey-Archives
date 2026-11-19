@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useData } from '../App.jsx'
-import { batchLabel, demoMode, importPlayer, importTeam, insertRow, listSubmissions, setSubmissionStatus, supabase } from '../data/db.js'
+import { batchLabel, demoMode, importMatch, importPlayer, importTeam, insertRow, listSubmissions, setSubmissionStatus, supabase } from '../data/db.js'
 import DataEditor from './DataEditor.jsx'
+import MatchFields, { emptyMatch, matchData, matchForm, validateMatch } from '../MatchFields.jsx'
 import TeamFields, { emptyTeam, teamData, teamForm, validateTeam } from '../TeamFields.jsx'
-import HistoryFields, { PlayerBasics, emptyHistory, emptyPlayer, playerRow, validateHistory, validatePlayer } from '../HistoryFields.jsx'
+import HistoryFields, { PlayerBasics, emptyHistory, normalizeHistory, emptyPlayer, playerRow, validateHistory, validatePlayer } from '../HistoryFields.jsx'
 
 // Each form: table name + fields. type 'ref' renders a dropdown of existing rows.
 const FORMS = (db) => {
@@ -12,8 +13,7 @@ const FORMS = (db) => {
   const list = (rows) => rows.map((r) => [r.id, r.name])
   return {
     'Player in team': { table: 'team_memberships', fields: [['player_id', 'Player', players, true], ['team_id', 'Team', teams, true], ['role', 'Role (Secretary: 1st XI only)', [['', 'Player'], ['Captain', 'Captain'], ['Vice-captain', 'Vice-captain'], ['Secretary', 'Secretary']]], ['position', 'Position']] },
-    'Player achievement': { table: 'achievements', fields: [['player_id', 'Player', players, true], ['title', 'Achievement (Royal Colours, Colombo Schools Colours, National Colours, Royal Crown, or your own)', 'text', true], ['sport', 'Sport (leave blank for Hockey)', 'text'], ['level', 'Level (Royal Colours only, e.g. 1st Year)'], ['season', 'Season', 'number'], ['source', 'Source (who told us / where)']] },
-    Match: { table: 'matches', fields: [['team_id', 'Royal team', teams, true], ['opponent_id', 'Opponent', list(db.opponents)], ['venue_id', 'Venue', list(db.venues)], ['tournament_id', 'Competition', db.tournaments.map((t) => [t.id, `${t.name} ${t.season || ''}`])], ['match_date', 'Date', 'date'], ['score_for', 'Royal goals', 'number'], ['score_against', 'Opponent goals', 'number'], ['stage', 'Stage (e.g. Final)'], ['notes', 'Notes', 'textarea'], ['source', 'Source (e.g. Daily News, 12 Mar 1989)']] },
+    'Player achievement': { table: 'achievements', fields: [['player_id', 'Player', players, true], ['title', 'Achievement (Royal Colours, Colombo Schools Colours, National Colours, Royal Crown, or your own)', 'text', true], ['sport', 'Sport (leave blank for Hockey)', 'text'], ['level', 'Level (Royal Colours only, e.g. 1st Year)'], ['role', 'Role (e.g. Captain (Reds), Head Prefect)'], ['season', 'Season', 'number'], ['source', 'Source (who told us / where)']] },
     Goal: { table: 'goals', fields: [['match_id', 'Match', db.matches.map((m) => [m.id, `${m.match_date || '?'} ${db.teamLabel(db.team[m.team_id])} vs ${db.opponent[m.opponent_id]?.name || '?'}`]), true], ['player_id', 'Scorer', players], ['minute', 'Minute', 'number'], ['kind', 'Type', [['', '—'], ['Field goal', 'Field goal'], ['Penalty corner', 'Penalty corner'], ['Penalty stroke', 'Penalty stroke']]]] },
     Opponent: { table: 'opponents', fields: [['name', 'School or club', 'text', true]] },
     Venue: { table: 'venues', fields: [['name', 'Name', 'text', true], ['city', 'City'], ['surface', 'Surface', [['', '—'], ['Grass', 'Grass'], ['Astro', 'Astro']]]] },
@@ -81,7 +81,7 @@ const toForm = (p) => ({ full_name: p.full_name || '', known_as: p.known_as || '
 
 function PlayerForm({ db, onSaved, initial, onDone }) {
   const [player, setPlayer] = useState(initial?.player || emptyPlayer())
-  const [history, setHistory] = useState(initial?.history || emptyHistory())
+  const [history, setHistory] = useState(initial?.history ? normalizeHistory(initial.history) : emptyHistory())
   const [source, setSource] = useState(initial?.source || '')
   const [st, setSt] = useState({})
   const save = async (e) => {
@@ -138,6 +138,35 @@ function TeamForm({ db, onSaved, initial, onDone }) {
   )
 }
 
+// Add a match. Its team, opponent, venue and competition are created if new.
+function MatchForm({ db, onSaved, initial, onDone }) {
+  const [match, setMatch] = useState(initial?.match ? matchForm(initial.match) : emptyMatch())
+  const [source, setSource] = useState(initial?.source || '')
+  const [st, setSt] = useState({})
+  const save = async (e) => {
+    e.preventDefault()
+    const errs = validateMatch(match)
+    if (errs.length) { setSt({ errs }); setTimeout(() => document.querySelector('.errors')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); return }
+    setSt({ busy: true })
+    try {
+      await importMatch(db, { ...matchData(match), source: source.trim() })
+      setSt({ ok: `Saved ${match.age_group} ${match.season} vs ${match.opponent}.` }); setMatch(emptyMatch()); setSource('')
+      onSaved(); onDone?.()
+    } catch (err) { setSt({ err: err.message }) }
+  }
+  return (
+    <form className="stack" onSubmit={save} style={{ maxWidth: 'none' }}>
+      <MatchFields db={db} value={match} onChange={(v) => { setMatch(v); setSt({}) }} />
+      <label>Source (who told us, or where it's from)<input value={source} onChange={(e) => setSource(e.target.value)} /></label>
+      {st.errs && <div className="errors" role="alert">Please fix these:<ul>{st.errs.map((x) => <li key={x}>{x}</li>)}</ul></div>}
+      <button className="gold" disabled={st.busy}>{st.busy ? 'Saving…' : 'Save match'}</button>
+      {st.err && <p className="error small">{st.err}</p>}
+      {st.ok && <p className="ok small">{st.ok}</p>}
+      <p className="small muted">Goalscorers are saved in the match notes. To link goals to players, add them in the Goal tab.</p>
+    </form>
+  )
+}
+
 function Submissions({ db, onSaved }) {
   const [rows, setRows] = useState(null), [err, setErr] = useState(''), [show, setShow] = useState('pending')
   const [open, setOpen] = useState(null)
@@ -173,7 +202,9 @@ function Submissions({ db, onSaved }) {
           {open === r.id && (
             <div className="form-card" style={{ marginTop: '1rem', maxWidth: 'none' }}>
               <p className="small muted">Check and correct the details, then save. The submission is marked approved once saved.</p>
-              {r.details._data.team
+              {r.details._data.match
+                ? <MatchForm db={db} onSaved={onSaved} onDone={() => { setOpen(null); mark(r, 'approved') }} initial={{ match: r.details._data.match, source: `Submitted by ${r.submitter_name}` }} />
+                : r.details._data.team
                 ? <TeamForm db={db} onSaved={onSaved} onDone={() => { setOpen(null); mark(r, 'approved') }} initial={{ team: r.details._data.team, source: `Submitted by ${r.submitter_name}` }} />
                 : <PlayerForm db={db} onSaved={onSaved} onDone={() => { setOpen(null); mark(r, 'approved') }}
                     initial={{ player: toForm(r.details._data.player), history: r.details._data.history, source: `Submitted by ${r.submitter_name}` }} />}
@@ -195,7 +226,7 @@ export default function Admin() {
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => data.subscription.unsubscribe()
   }, [])
-  const forms = { Submissions: null, Data: null, Player: null, Team: null, ...FORMS(db) }
+  const forms = { Submissions: null, Data: null, Player: null, Team: null, Match: null, ...FORMS(db) }
   return (
     <>
       <h1>Admin</h1>
@@ -209,6 +240,7 @@ export default function Admin() {
             : tab === 'Data' ? <DataEditor db={db} onChanged={reload} />
             : tab === 'Player' ? <div className="form-card" style={{ maxWidth: 820 }}><PlayerForm db={db} onSaved={reload} /></div>
             : tab === 'Team' ? <div className="form-card" style={{ maxWidth: 820 }}><TeamForm db={db} onSaved={reload} /></div>
+            : tab === 'Match' ? <div className="form-card" style={{ maxWidth: 820 }}><MatchForm db={db} onSaved={reload} /></div>
             : <div className="form-card"><EntryForm key={tab} spec={forms[tab]} onSaved={reload} /></div>}
         </>
       )}

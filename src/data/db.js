@@ -60,10 +60,50 @@ export const result = (m) =>
 
 export const AGE_GROUPS = ['U9', 'U11', 'U13', 'U15', 'U17', '1st XI']
 export const rolesFor = (ageGroup) => (ageGroup === '1st XI' ? ['Captain', 'Vice-captain', 'Secretary'] : ['Captain', 'Vice-captain'])
-export const HOCKEY_HONOURS = ['Royal Colours', 'Colombo Schools Colours', 'National Colours', 'Royal Crown', 'Other']
+// Achievement groups on the player form. roles: choices per year; ordinal: numbered 1st Year, 2nd Year…
+export const HOCKEY_ACHIEVEMENTS = [
+  { key: 'Royal Colours', ordinal: true },
+  { key: 'Colombo Schools Colours', roles: ['Captain (Reds)', 'Vice-Captain (Reds)', 'Captain (Blues)', 'Vice-Captain (Blues)'] },
+  { key: 'Sri Lanka Schools Colours', roles: ['Captain', 'Vice-Captain'] },
+  { key: 'National Colours' },
+  { key: 'Other', text: true },
+]
+export const OTHER_ACHIEVEMENTS = [
+  { key: 'Royal Crown' },
+  { key: 'Senior Prefect', roles: ['Head Prefect', 'Senior Deputy Head Prefect', 'Deputy Head Prefect'] },
+]
+export const SPORT_COLOUR_ROLES = ['Captain', 'Vice-Captain']
+export const SPORTS = ['Athletics', 'Badminton', 'Basketball', 'Boxing', 'Chess', 'Cricket', 'Cycling', 'Football', 'Golf', 'Judo', 'Karate', 'Rifle Shooting', 'Rowing', 'Rugby', 'Squash', 'Swimming', 'Table Tennis', 'Taekwondo', 'Tennis', 'Volleyball', 'Water Polo', 'Wrestling']
+const NON_SPORT = new Set(OTHER_ACHIEVEMENTS.map((g) => g.key))
 export const MAX_YEARS = 10
-export const KNOWN_COACHES = ['Mr. AN Perera', 'Mrs. Manel Wimalaratne', 'Mr. Mulaafar', 'Mr. Vasantha de Silva', 'Mr. Ashok Peiris', 'Mr. Rohan Dissanayake']
-export const TEAM_RESULTS = ['Champions', 'Runners-up', '3rd place', 'Semi-finalists', 'Quarter-finalists']
+export const KNOWN_COACHES = ['Mr. Ashok Peiris', 'Mr. Mulaafar', 'Mr. Rohan Dissanayake', 'Mr. Vasantha de Silva']
+// Team competitions by age group. Trophy matches are against one school.
+export const TOURNAMENT_RESULTS = ['Champions', 'Runners-Up', '2nd Runners-Up', '4th Place', 'Quarter-Finals', 'Pre-Quarter-Finals', 'Group Stage']
+export const TROPHY_RESULTS = ['Won', 'Drawn', 'Lost']
+export const CARNIVAL_RESULTS = ['Gold Star', 'Silver Star']
+const AI = 'All-Island Schools Hockey Championship', WP = 'Western Province Hockey Championship'
+export const COMPETITIONS = {
+  '1st XI': {
+    tournaments: ['National Schools Knockout Tournament', AI, 'Western Province Knockout Tournament'],
+    trophies: [
+      { name: 'Orville Abeynaike Memorial Trophy', opponent: "S. Thomas' College, Mount Lavinia" },
+      { name: 'J.C.A. Corea Memorial Trophy', opponent: 'Trinity College, Kandy' },
+      { name: 'Dudley K.G. De Silva Challenge Shield', opponent: 'Wesley College, Colombo' },
+      { name: 'Lennie De Silva Memorial Trophy', opponent: 'Kingswood College, Kandy' },
+    ],
+  },
+  U17: { tournaments: [AI, WP], trophies: [] },
+  U15: { tournaments: [AI, WP], trophies: [] },
+  U13: { tournaments: [AI, WP, 'Western Province Hockey Carnival'], trophies: [] },
+}
+export const competitionsFor = (g) => COMPETITIONS[g] || { tournaments: [], trophies: [] }
+export const trophyFor = (name) => Object.values(COMPETITIONS).flatMap((c) => c.trophies).find((t) => t.name === name)
+export function resultsFor(name, ageGroup) {
+  if (name === 'Western Province Hockey Carnival') return CARNIVAL_RESULTS
+  if (trophyFor(name)) return TROPHY_RESULTS
+  if (competitionsFor(ageGroup).tournaments.includes(name)) return TOURNAMENT_RESULTS
+  return [...TOURNAMENT_RESULTS, ...TROPHY_RESULTS, ...CARNIVAL_RESULTS] // a competition typed in by hand
+}
 
 // Every country name (from the browser), with Sri Lanka first.
 const ISO = 'AD AE AF AG AL AM AO AR AT AU AZ BA BB BD BE BF BG BH BI BJ BN BO BR BS BT BW BY BZ CA CD CF CG CH CI CL CM CN CO CR CU CV CY CZ DE DJ DK DM DO DZ EC EE EG ER ES ET FI FJ FM FR GA GB GD GE GH GM GN GQ GR GT GW GY HK HN HR HT HU ID IE IL IN IQ IR IS IT JM JO JP KE KG KH KI KM KN KP KR KW KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MG MH MK ML MM MN MO MR MT MU MV MW MX MY MZ NA NE NG NI NL NO NP NR NZ OM PA PE PG PH PK PL PS PT PW PY QA RO RS RU RW SA SB SC SD SE SG SI SK SL SM SN SO SR SS ST SV SY SZ TD TG TH TJ TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VN VU WS YE ZA ZM ZW'
@@ -79,7 +119,8 @@ export const yearsAtRoyal = (p) => (p?.joined_year || p?.batch ? `At Royal ${p.j
 
 // How an honour is shown, e.g. "1st Year Coloursman", "Boxing: Royal Colours", "Royal Crown".
 export function honourLabel(a) {
-  let t = a.title === 'Royal Colours' && a.level ? `${a.level} Coloursman` : a.title
+  let t = a.title === 'Royal Colours' && a.level ? `${a.level} Coloursman` : a.title === 'Senior Prefect' && a.role ? a.role : a.title
+  if (a.role && a.title !== 'Senior Prefect') t += ` · ${a.role}`
   if (a.sport && a.sport !== 'Hockey') t = `${a.sport}: ${t}`
   return t
 }
@@ -90,14 +131,13 @@ export function historyRows(history) {
   const teams = [], honours = []
   for (const [age_group, rows] of Object.entries(history?.teams || {}))
     for (const r of rows) teams.push({ age_group, season: +r.year, role: r.role || null })
-  for (const [title, rows] of Object.entries(history?.honours || {})) {
-    const sorted = [...rows].sort((a, b) => a.year - b.year)
-    sorted.forEach((r, i) => honours.push({
-      title: title === 'Other' ? r.text.trim() : title,
-      season: +r.year, sport: 'Hockey',
-      level: title === 'Royal Colours' ? `${ordinal(i + 1)} Year` : null,
-    }))
-  }
+  const add = (title, rows, sport, numbered) => [...rows].sort((a, b) => a.year - b.year).forEach((r, i) => honours.push({
+    title: title === 'Other' ? r.text.trim() : title, season: +r.year, sport,
+    level: numbered ? `${ordinal(i + 1)} Year` : null, role: r.role || null,
+  }))
+  for (const [title, rows] of Object.entries(history?.honours || {})) add(title, rows, NON_SPORT.has(title) ? null : 'Hockey', title === 'Royal Colours')
+  for (const [title, rows] of Object.entries(history?.other || {})) add(title, rows, null, false)
+  for (const s of history?.sports || []) add('Royal Colours', s.rows, s.sport === 'Other' ? s.otherSport.trim() : s.sport, true)
   return { teams, honours }
 }
 
@@ -170,8 +210,8 @@ export async function importPlayer(db, { player, history, source }) {
     const { error } = await supabase.from('team_memberships').upsert({ player_id: p.id, team_id: team.id, role: t.role }, { onConflict: 'player_id,team_id' })
     if (error) throw new Error(error.message)
   }
-  const have = new Set((db.achievementsByPlayer?.[p.id] || []).map((a) => `${a.title}|${a.season}|${a.sport}`))
-  const rows = honours.filter((h) => !have.has(`${h.title}|${h.season}|${h.sport}`)).map((h) => ({ ...h, player_id: p.id, source: source || null }))
+  const have = new Set((db.achievementsByPlayer?.[p.id] || []).map((a) => `${a.title}|${a.season}|${a.sport ?? ''}`))
+  const rows = honours.filter((h) => !have.has(`${h.title}|${h.season}|${h.sport ?? ''}`)).map((h) => ({ ...h, player_id: p.id, source: source || null }))
   if (rows.length) {
     const { error } = await supabase.from('achievements').insert(rows)
     if (error) throw new Error(error.message)
@@ -246,4 +286,36 @@ export async function deleteRow(table, pk, row) {
   const { data, error } = await where(supabase.from(table).delete(), pk, row).select()
   if (error) throw new Error(error.message)
   if (!data?.length) throw new Error("Nothing was deleted. Check you're signed in as an editor.")
+}
+
+// ---------- Matches ----------
+export const matchSummary = (m) => ({
+  Team: `${m.age_group} ${m.season}`, Opponent: m.opponent, Date: m.match_date, Competition: m.competition, Stage: m.stage,
+  Score: m.score_for != null ? `Royal ${m.score_for} – ${m.score_against}` : '', Venue: m.venue, Scorers: m.scorers, Notes: m.notes,
+})
+
+async function findOrCreate(table, match, row) {
+  const { data: found, error } = await Object.entries(match).reduce((q, [k, v]) => (v == null ? q.is(k, null) : typeof v === 'string' ? q.ilike(k, v) : q.eq(k, v)), supabase.from(table).select('*')).limit(1)
+  if (error) throw new Error(error.message)
+  if (found?.length) return found[0]
+  return insertRow(table, row)
+}
+
+// Editors only: save a match, creating its team, opponent, venue and competition if needed.
+export async function importMatch(db, m) {
+  if (demoMode) throw new Error('Demo mode: connect Supabase to save data.')
+  const { data: team, error } = await supabase.from('teams').upsert({ age_group: m.age_group, season: m.season }, { onConflict: 'age_group,season' }).select().single()
+  if (error) throw new Error(error.message)
+  const opp = await findOrCreate('opponents', { name: m.opponent }, { name: m.opponent })
+  const venue = m.venue ? await findOrCreate('venues', { name: m.venue }, { name: m.venue }) : null
+  const comp = m.competition ? await findOrCreate('tournaments', { name: m.competition, season: m.season }, { name: m.competition, season: m.season, level: m.competition_kind }) : null
+  if (m.match_date) {
+    const { data: dup } = await supabase.from('matches').select('id').eq('team_id', team.id).eq('opponent_id', opp.id).eq('match_date', m.match_date).limit(1)
+    if (dup?.length) throw new Error('This match is already in the archive (same team, opponent and date).')
+  }
+  const notes = [m.scorers && `Scorers: ${m.scorers}`, m.notes].filter(Boolean).join('\n') || null
+  return insertRow('matches', {
+    team_id: team.id, opponent_id: opp.id, venue_id: venue?.id || null, tournament_id: comp?.id || null, match_date: m.match_date,
+    score_for: m.score_for, score_against: m.score_against, stage: m.stage, notes, source: m.source || null,
+  })
 }

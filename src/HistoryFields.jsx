@@ -1,11 +1,23 @@
-import { AGE_GROUPS, COUNTRIES, HOCKEY_HONOURS, MAX_YEARS, ordinal, rolesFor } from './data/db.js'
+import { AGE_GROUPS, COUNTRIES, HOCKEY_ACHIEVEMENTS, MAX_YEARS, OTHER_ACHIEVEMENTS, SPORTS, SPORT_COLOUR_ROLES, ordinal, rolesFor } from './data/db.js'
 
 // Shared by the public Submit form and the admin player form.
-// value = { teams: { U13: [{ year, role }] }, honours: { 'Royal Colours': [{ year }], Other: [{ year, text }] } }
+// value = {
+//   teams:   { U13: [{ year, role }] },
+//   honours: { 'Royal Colours': [{ year }], 'Colombo Schools Colours': [{ year, role }], Other: [{ year, text }] },   ← hockey
+//   other:   { 'Royal Crown': [{ year }], 'Senior Prefect': [{ year, role }] },
+//   sports:  [{ sport: 'Rugby', otherSport: '', rows: [{ year, role }] }],                                          ← colours in other sports
+// }
 // A group is ticked when its key exists.
 
-export const emptyHistory = () => ({ teams: {}, honours: {} })
+export const emptyHistory = () => ({ teams: {}, honours: {}, other: {}, sports: [] })
+// Older submissions kept Royal Crown with the hockey achievements; move it to Other achievements.
+export function normalizeHistory(h = {}) {
+  const { 'Royal Crown': crown, ...honours } = h.honours || {}
+  return { teams: h.teams || {}, honours, other: { ...(crown ? { 'Royal Crown': crown } : {}), ...(h.other || {}) }, sports: h.sports || [] }
+}
 const thisYear = new Date().getFullYear()
+// Players sometimes play one season after their batch year, so allow batch + 1.
+const GRACE = 1
 
 export function validateHistory(h, { joined, batch } = {}) {
   const errs = []
@@ -13,22 +25,30 @@ export function validateHistory(h, { joined, batch } = {}) {
     const y = +r.year
     if (!r.year) return errs.push(`${label}: enter the year`)
     if (!Number.isInteger(y) || y < 1835 || y > thisYear) return errs.push(`${label}: ${r.year} isn't a valid year`)
-    if (batch && y > +batch) errs.push(`${label}: ${y} is after the batch year (${batch})`)
+    if (batch && y > +batch + GRACE) errs.push(`${label}: ${y} is more than a year after the batch year (${batch})`)
     if (joined && y < +joined) errs.push(`${label}: ${y} is before he joined (${joined})`)
   }
-  for (const [g, rows] of Object.entries(h.teams)) {
-    rows.forEach((r, i) => check(`${g}, ${ordinal(i + 1)} year`, r))
+  const noRepeats = (label, rows) => {
     const ys = rows.map((r) => r.year).filter(Boolean)
-    if (new Set(ys).size !== ys.length) errs.push(`${g}: the same year is entered twice`)
+    if (new Set(ys).size !== ys.length) errs.push(`${label}: the same year is entered twice`)
   }
-  for (const [t, rows] of Object.entries(h.honours)) {
+  for (const [g, rows] of Object.entries(h.teams)) { rows.forEach((r, i) => check(`${g}, ${ordinal(i + 1)} year`, r)); noRepeats(g, rows) }
+  for (const [t, rows] of [...Object.entries(h.honours), ...Object.entries(h.other || {})]) {
     rows.forEach((r, i) => {
       check(`${t}, ${ordinal(i + 1)} entry`, r)
-      if (t === 'Other' && !r.text?.trim()) errs.push(`Other achievement ${i + 1}: describe it`)
+      if (t === 'Other' && !r.text?.trim()) errs.push(`Other hockey achievement ${i + 1}: describe it`)
     })
-    const ys = rows.map((r) => r.year).filter(Boolean)
-    if (t !== 'Other' && new Set(ys).size !== ys.length) errs.push(`${t}: the same year is entered twice`)
+    if (t !== 'Other') noRepeats(t, rows)
   }
+  const seen = new Set()
+  ;(h.sports || []).forEach((s, i) => {
+    const name = s.sport === 'Other' ? s.otherSport?.trim() : s.sport
+    if (!name) return errs.push(`Other sport ${i + 1}: choose the sport`)
+    if (seen.has(name.toLowerCase())) errs.push(`${name}: listed twice`)
+    seen.add(name.toLowerCase())
+    s.rows.forEach((r, j) => check(`${name} colours, ${ordinal(j + 1)} year`, r))
+    noRepeats(`${name} colours`, s.rows)
+  })
   return errs
 }
 
@@ -42,15 +62,17 @@ function Counter({ n, set }) {
   )
 }
 
-function Group({ title, ticked, onTick, rows, onRows, blank, renderRow }) {
-  const resize = (n) => onRows(rows.length > n ? rows.slice(0, n) : [...rows, ...Array.from({ length: n - rows.length }, blank)])
+const resized = (rows, n, blank) => (rows.length > n ? rows.slice(0, n) : [...rows, ...Array.from({ length: n - rows.length }, blank)])
+
+function Group({ title, ticked, onTick, rows, onRows, blank, renderRow, head }) {
   return (
     <div className={`hgroup ${ticked ? 'on' : ''}`}>
       <label className="hgroup-head">
         <input type="checkbox" checked={ticked} onChange={(e) => onTick(e.target.checked)} />
         <span>{title}</span>
-        {ticked && <Counter n={rows.length} set={resize} />}
+        {ticked && <Counter n={rows.length} set={(n) => onRows(resized(rows, n, blank))} />}
       </label>
+      {ticked && head}
       {ticked && <div className="hrows">{rows.map((r, i) => renderRow(r, i, (patch) => onRows(rows.map((x, j) => (j === i ? { ...x, ...patch } : x)))))}</div>}
     </div>
   )
@@ -60,17 +82,51 @@ const YearInput = ({ value, onChange, label }) => (
   <input className="year" type="number" inputMode="numeric" min="1835" max={thisYear} placeholder="Year" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} />
 )
 
+const Chips = ({ options, value, onChange }) => (
+  <div className="chips">
+    {options.map((o) => <button type="button" key={o} className={`chip ${value === o ? 'on' : ''}`} aria-pressed={value === o} onClick={() => onChange(value === o ? '' : o)}>{o}</button>)}
+  </div>
+)
+
+// The numbered badge next to a colours year, e.g. "2nd Year Coloursman".
+function OrdinalBadge({ rows, r }) {
+  if (!r.year) return null
+  const n = rows.filter((x) => x.year).sort((a, b) => a.year - b.year).indexOf(r) + 1
+  return <span className="pill gold">{ordinal(n)} Year Coloursman</span>
+}
+
+// One ticked group of achievements (Royal Colours, Senior Prefect…).
+function AchievementGroups({ groups, value, setGroup }) {
+  return groups.map((g) => {
+    const blank = () => (g.text ? { year: '', text: '' } : { year: '', role: '' })
+    const rows = value[g.key] || []
+    return (
+      <Group key={g.key} title={g.key === 'Other' ? 'Other hockey achievement' : g.key} ticked={!!value[g.key]} rows={rows}
+        onTick={(on) => setGroup(g.key, on ? [blank()] : null)} onRows={(rs) => setGroup(g.key, rs)} blank={blank}
+        renderRow={(r, i, patch) => (
+          <div key={i} className="hrow">
+            <span className="hrow-n">{ordinal(i + 1)}</span>
+            <YearInput value={r.year} onChange={(year) => patch({ year })} label={`${g.key} ${ordinal(i + 1)} year`} />
+            {g.text && <input className="grow" placeholder="e.g. Best goalkeeper, Schools Nationals" value={r.text} onChange={(e) => patch({ text: e.target.value })} aria-label="Achievement" />}
+            {g.ordinal && <OrdinalBadge rows={rows} r={r} />}
+            {g.roles && <Chips options={g.roles} value={r.role} onChange={(role) => patch({ role })} />}
+          </div>
+        )} />
+    )
+  })
+}
+
 export default function HistoryFields({ value, onChange }) {
-  const setTeams = (g, rows) => {
-    const teams = { ...value.teams }
-    if (rows) teams[g] = rows; else delete teams[g]
-    onChange({ ...value, teams })
+  const v = { other: {}, sports: [], ...value }
+  const setIn = (part) => (k, rows) => {
+    const next = { ...v[part] }
+    if (rows) next[k] = rows; else delete next[k]
+    onChange({ ...v, [part]: next })
   }
-  const setHon = (t, rows) => {
-    const honours = { ...value.honours }
-    if (rows) honours[t] = rows; else delete honours[t]
-    onChange({ ...value, honours })
-  }
+  const setSports = (sports) => onChange({ ...v, sports })
+  const setSport = (i, patch) => setSports(v.sports.map((s, j) => (j === i ? { ...s, ...patch } : s)))
+  const usedSports = v.sports.map((s) => s.sport)
+
   return (
     <>
       <fieldset className="hset">
@@ -78,17 +134,13 @@ export default function HistoryFields({ value, onChange }) {
         <p className="small muted">Tick each team he played in, choose how many years, then enter each year.</p>
         <div className="hgrid">
           {AGE_GROUPS.map((g) => (
-            <Group key={g} title={g === '1st XI' ? '1st XI' : `${g} team`} ticked={!!value.teams[g]} rows={value.teams[g] || []}
-              onTick={(on) => setTeams(g, on ? [{ year: '', role: '' }] : null)} onRows={(rows) => setTeams(g, rows)} blank={() => ({ year: '', role: '' })}
+            <Group key={g} title={g === '1st XI' ? '1st XI' : `${g} team`} ticked={!!v.teams[g]} rows={v.teams[g] || []}
+              onTick={(on) => setIn('teams')(g, on ? [{ year: '', role: '' }] : null)} onRows={(rows) => setIn('teams')(g, rows)} blank={() => ({ year: '', role: '' })}
               renderRow={(r, i, patch) => (
                 <div key={i} className="hrow">
                   <span className="hrow-n">{ordinal(i + 1)}</span>
                   <YearInput value={r.year} onChange={(year) => patch({ year })} label={`${g} ${ordinal(i + 1)} year`} />
-                  <div className="chips">
-                    {rolesFor(g).map((role) => (
-                      <button type="button" key={role} className={`chip ${r.role === role ? 'on' : ''}`} aria-pressed={r.role === role} onClick={() => patch({ role: r.role === role ? '' : role })}>{role}</button>
-                    ))}
-                  </div>
+                  <Chips options={rolesFor(g)} value={r.role} onChange={(role) => patch({ role })} />
                 </div>
               )} />
           ))}
@@ -97,21 +149,43 @@ export default function HistoryFields({ value, onChange }) {
 
       <fieldset className="hset">
         <legend>Hockey achievements</legend>
-        <p className="small muted">For Royal Colours, enter each year he received them. They'll show as 1st Year Coloursman, 2nd Year Coloursman and so on.</p>
+        <p className="small muted">Tick each one, choose how many years, then enter each year. Royal Colours show as 1st Year Coloursman, 2nd Year Coloursman and so on.</p>
+        <div className="hgrid"><AchievementGroups groups={HOCKEY_ACHIEVEMENTS} value={v.honours} setGroup={setIn('honours')} /></div>
+      </fieldset>
+
+      <fieldset className="hset">
+        <legend>Other achievements</legend>
         <div className="hgrid">
-          {HOCKEY_HONOURS.map((t) => (
-            <Group key={t} title={t} ticked={!!value.honours[t]} rows={value.honours[t] || []}
-              onTick={(on) => setHon(t, on ? [t === 'Other' ? { year: '', text: '' } : { year: '' }] : null)} onRows={(rows) => setHon(t, rows)}
-              blank={() => (t === 'Other' ? { year: '', text: '' } : { year: '' })}
-              renderRow={(r, i, patch) => (
-                <div key={i} className="hrow">
-                  <span className="hrow-n">{ordinal(i + 1)}</span>
-                  <YearInput value={r.year} onChange={(year) => patch({ year })} label={`${t} ${ordinal(i + 1)} year`} />
-                  {t === 'Other' && <input className="grow" placeholder="e.g. Best goalkeeper, Schools Nationals" value={r.text} onChange={(e) => patch({ text: e.target.value })} aria-label="Achievement" />}
-                  {t === 'Royal Colours' && r.year && <span className="pill gold">{ordinal([...value.honours[t]].filter((x) => x.year).sort((a, b) => a.year - b.year).indexOf(r) + 1)} Year Coloursman</span>}
+          <AchievementGroups groups={OTHER_ACHIEVEMENTS} value={v.other} setGroup={setIn('other')} />
+          {v.sports.map((s, i) => (
+            <Group key={i} title={<>Colours in another sport</>} ticked rows={s.rows}
+              onTick={(on) => !on && setSports(v.sports.filter((_, j) => j !== i))} onRows={(rows) => setSport(i, { rows })} blank={() => ({ year: '', role: '' })}
+              head={(
+                <div className="hrows" style={{ paddingBottom: 0 }}>
+                  <div className="hrow">
+                    <label className="inline">Sport
+                      <select value={s.sport} onChange={(e) => setSport(i, { sport: e.target.value })} aria-label={`Other sport ${i + 1}`}>
+                        <option value="">Choose a sport…</option>
+                        {SPORTS.map((sp) => <option key={sp} disabled={sp !== s.sport && usedSports.includes(sp)}>{sp}</option>)}
+                        <option value="Other">Other (type it)</option>
+                      </select>
+                    </label>
+                    {s.sport === 'Other' && <input className="grow" placeholder="Sport" aria-label={`Other sport ${i + 1} name`} value={s.otherSport} onChange={(e) => setSport(i, { otherSport: e.target.value })} />}
+                  </div>
+                </div>
+              )}
+              renderRow={(r, j, patch) => (
+                <div key={j} className="hrow">
+                  <span className="hrow-n">{ordinal(j + 1)}</span>
+                  <YearInput value={r.year} onChange={(year) => patch({ year })} label={`Other sport ${i + 1} ${ordinal(j + 1)} year`} />
+                  <OrdinalBadge rows={s.rows} r={r} />
+                  <Chips options={SPORT_COLOUR_ROLES} value={r.role} onChange={(role) => patch({ role })} />
                 </div>
               )} />
           ))}
+          <button type="button" className="ghost add-btn" onClick={() => setSports([...v.sports, { sport: '', otherSport: '', rows: [{ year: '', role: '' }] }])}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg> Add colours in another sport
+          </button>
         </div>
       </fieldset>
     </>

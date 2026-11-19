@@ -40,6 +40,7 @@ create table achievements (               -- awards for individual players
   title text not null,                 -- 'Royal Colours', 'Colombo Schools Colours', 'National Colours', 'Royal Crown', or free text
   sport text default 'Hockey',
   level text,                          -- e.g. '1st Year' (Royal Colours)
+  role text,                           -- e.g. 'Captain (Reds)', 'Vice-Captain', 'Head Prefect'
   season int,
   source text
 );

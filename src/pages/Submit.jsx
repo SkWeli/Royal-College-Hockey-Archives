@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useData } from '../App.jsx'
-import { historySummary, sendSubmission, teamSummary } from '../data/db.js'
+import { historySummary, matchSummary, sendSubmission, teamSummary } from '../data/db.js'
+import MatchFields, { emptyMatch, matchData, validateMatch } from '../MatchFields.jsx'
 import TeamFields, { emptyTeam, teamData, validateTeam } from '../TeamFields.jsx'
 import HistoryFields, { PlayerBasics, emptyHistory, emptyPlayer, playerRow, validateHistory, validatePlayer } from '../HistoryFields.jsx'
 
@@ -8,7 +9,7 @@ import HistoryFields, { PlayerBasics, emptyHistory, emptyPlayer, playerRow, vali
 const KINDS = {
   Player: null, // structured forms below
   Team: null,
-  Match: [['Royal team (e.g. 1st XI 2016)', true], ['Opponent', true], ['Date'], ['Score (Royal – opponent)', true], ['Competition / stage'], ['Venue'], ['Royal goalscorers', false, true], ['Notes', false, true]],
+  Match: null,
   Achievement: [['Player or team', true], ['Achievement (e.g. Royal Colours, Royal Crown, Best player)', true], ['Sport'], ['Year']],
   Correction: [['Which page or entry?', true], ['What should change?', true, true]],
   Other: [['Your message', true, true]],
@@ -17,6 +18,7 @@ const KINDS = {
 export default function Submit() {
   const { db } = useData()
   const [team, setTeam] = useState(emptyTeam)
+  const [match, setMatch] = useState(emptyMatch)
   const [kind, setKind] = useState('Player')
   const [vals, setVals] = useState({})
   const [player, setPlayer] = useState(emptyPlayer)
@@ -30,20 +32,21 @@ export default function Submit() {
   const submit = async (e) => {
     e.preventDefault()
     const errs = fields ? fields.filter(([l, req]) => req && !vals[l]?.trim()).map(([l]) => `${l}: required`)
-      : kind === 'Team' ? validateTeam(team) : [...validatePlayer(player), ...validateHistory(history, player)]
+      : kind === 'Team' ? validateTeam(team) : kind === 'Match' ? validateMatch(match) : [...validatePlayer(player), ...validateHistory(history, player)]
     if (who.submitter_name.trim().length < 2) errs.push('Your name: required')
     if (errs.length) { setState({ errs }); setTimeout(() => document.querySelector('.errors')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); return }
     setState({ busy: true })
     try {
       const details = fields ? Object.fromEntries(fields.map(([l]) => [l, vals[l]?.trim() || '']))
-        : kind === 'Team' ? { ...teamSummary(teamData(team)), _data: { team: teamData(team) } } : {
+        : kind === 'Team' ? { ...teamSummary(teamData(team)), _data: { team: teamData(team) } }
+        : kind === 'Match' ? { ...matchSummary(matchData(match)), _data: { match: matchData(match) } } : {
         'Full name': player.full_name.trim(), 'Known as': player.known_as.trim(),
         'At Royal': player.joined_year || player.batch ? `${player.joined_year || '?'}–${player.batch || '?'}` : '',
         'Other sports': player.other_sports.trim(), ...historySummary(history), 'Anything else': player.bio.trim(),
         _data: { player: playerRow(player), history },
       }
       await sendSubmission({ kind, details, ...who })
-      setVals({}); setPlayer(emptyPlayer()); setHistory(emptyHistory()); setTeam(emptyTeam())
+      setVals({}); setPlayer(emptyPlayer()); setHistory(emptyHistory()); setTeam(emptyTeam()); setMatch(emptyMatch())
       setState({ ok: true })
     } catch (err) { setState({ err: err.message }) }
   }
@@ -64,6 +67,7 @@ export default function Submit() {
       <div className="tabs">{Object.keys(KINDS).map((k) => <button key={k} type="button" className={k === kind ? 'on' : 'ghost'} onClick={() => { setKind(k); setVals({}); setState({}) }}>{k}</button>)}</div>
       <div className="form-card">
       <form className="stack" onSubmit={submit}>
+        {kind === 'Match' && <MatchFields db={db} value={match} onChange={(v) => { setMatch(v); setState({}) }} />}
         {kind === 'Team' && <TeamFields db={db} value={team} onChange={(v) => { setTeam(v); setState({}) }} />}
         {kind === 'Player' && <><PlayerBasics value={player} onChange={(v) => { setPlayer(v); setState({}) }} /><HistoryFields value={history} onChange={(v) => { setHistory(v); setState({}) }} /></>}
         {fields?.map(([label, req, long]) => (

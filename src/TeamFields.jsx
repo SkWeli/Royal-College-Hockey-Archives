@@ -1,10 +1,33 @@
-import { AGE_GROUPS, COUNTRIES, KNOWN_COACHES, TEAM_RESULTS, rolesFor } from './data/db.js'
+import { AGE_GROUPS, COUNTRIES, KNOWN_COACHES, competitionsFor, resultsFor, rolesFor } from './data/db.js'
 
 // Shared by the public Submit form and the admin team form.
-// value = { age_group, season, coach, newCoach, squad: [{ name, batch, role, country }], achievements: [{ title, finish }] }
+// value = { age_group, season, coach, newCoach, squad: [{ name, batch, role, country }], achievements: [{ title, finish, custom }] }
+// custom: the competition was typed in rather than picked from the list.
 export const emptyTeam = () => ({ age_group: '', season: '', coach: '', newCoach: '', squad: [], achievements: [] })
 const NEW = '__new'
 const thisYear = new Date().getFullYear()
+
+const OTHER = '__other'
+const listed = (g) => { const c = competitionsFor(g); return [...c.tournaments, ...c.trophies.map((t) => t.name)] }
+const isListed = (g, name) => listed(g).includes(name)
+
+// Tournament / trophy picker with an "Other" option, shared by the team and match forms.
+export function CompetitionSelect({ ageGroup, value, custom, onChange, label = 'Tournament or trophy', allowFriendly = false }) {
+  const c = competitionsFor(ageGroup)
+  const isCustom = custom || (!!value && !isListed(ageGroup, value) && !(allowFriendly && value === 'Friendly'))
+  return (
+    <>
+      <select className="grow" aria-label={label} value={isCustom ? OTHER : value} onChange={(e) => (e.target.value === OTHER ? onChange({ title: '', custom: true }) : onChange({ title: e.target.value, custom: false }))}>
+        <option value="">{ageGroup ? 'Choose…' : 'Choose the team first…'}</option>
+        {c.tournaments.length > 0 && <optgroup label="Tournaments">{c.tournaments.map((n) => <option key={n}>{n}</option>)}</optgroup>}
+        {c.trophies.length > 0 && <optgroup label="Trophy matches">{c.trophies.map((t) => <option key={t.name} value={t.name}>{t.name} (vs {t.opponent})</option>)}</optgroup>}
+        {allowFriendly && <option value="Friendly">Friendly</option>}
+        <option value={OTHER}>Other (type it)</option>
+      </select>
+      {isCustom && <input className="grow reveal" placeholder="Name of the tournament or trophy" aria-label={`${label}, typed`} value={value} onChange={(e) => onChange({ title: e.target.value, custom: true })} />}
+    </>
+  )
+}
 
 export const coachOf = (t) => (t.coach === NEW ? t.newCoach.trim() : t.coach)
 
@@ -21,7 +44,10 @@ export function validateTeam(t) {
   const names = t.squad.map((p) => p.name.trim().toLowerCase()).filter(Boolean)
   if (new Set(names).size !== names.length) errs.push('Squad: the same player is listed twice')
   for (const r of rolesFor(t.age_group)) if (t.squad.filter((p) => p.role === r).length > 1) errs.push(`Squad: more than one ${r}`)
-  t.achievements.forEach((a, i) => { if (a.title.trim().length < 3) errs.push(`Achievement ${i + 1}: describe it`) })
+  t.achievements.forEach((a, i) => {
+    if (a.title.trim().length < 3) errs.push(`Achievement ${i + 1}: choose or type the tournament or trophy`)
+    if (!a.finish) errs.push(`Achievement ${i + 1}: choose the result`)
+  })
   return errs
 }
 
@@ -35,7 +61,7 @@ export const teamData = (t) => ({
 export const teamForm = (d) => ({
   age_group: d.age_group || '', season: d.season ?? '', coach: d.coach ? (KNOWN_COACHES.includes(d.coach) ? d.coach : NEW) : '', newCoach: d.coach && !KNOWN_COACHES.includes(d.coach) ? d.coach : '',
   squad: (d.squad || []).map((p) => ({ name: p.name || '', batch: p.batch ?? '', role: p.role || '', country: p.country || 'Sri Lanka' })),
-  achievements: (d.achievements || []).map((a) => ({ title: a.title || '', finish: a.finish || '' })),
+  achievements: (d.achievements || []).map((a) => ({ title: a.title || '', finish: a.finish || '', custom: !!a.title && !isListed(d.age_group, a.title) })),
 })
 
 const Remove = ({ onClick, label }) => (
@@ -103,21 +129,24 @@ export default function TeamFields({ value: t, onChange, db }) {
 
       <fieldset className="hset">
         <legend>Achievements</legend>
-        <p className="small muted">Add each achievement the team won that year.</p>
-        <datalist id="team-results">{TEAM_RESULTS.map((r) => <option key={r} value={r} />)}</datalist>
+        <p className="small muted">Add each tournament or trophy match, and how the team finished.</p>
         <div className="rowlist">
           {t.achievements.map((a, i) => (
             <div key={i} className="rowcard">
               <span className="rownum">{i + 1}</span>
               <div className="rowcard-body"><div className="rowcard-line">
-                <input className="grow" placeholder="Competition, e.g. All-Island Championship" aria-label={`Achievement ${i + 1}`} value={a.title} onChange={(e) => setRow('achievements', i, { title: e.target.value })} />
-                <input className="mid" list="team-results" placeholder="Result, e.g. 3rd place" aria-label={`Achievement ${i + 1} result`} value={a.finish} onChange={(e) => setRow('achievements', i, { finish: e.target.value })} />
+                <CompetitionSelect ageGroup={t.age_group} value={a.title} custom={a.custom} label={`Achievement ${i + 1}`}
+                  onChange={({ title, custom }) => setRow('achievements', i, { title, custom, finish: resultsFor(title, t.age_group).includes(a.finish) ? a.finish : '' })} />
+                <select className="mid" aria-label={`Achievement ${i + 1} result`} value={a.finish} onChange={(e) => setRow('achievements', i, { finish: e.target.value })}>
+                  <option value="">Result…</option>
+                  {resultsFor(a.title, t.age_group).map((r) => <option key={r}>{r}</option>)}
+                </select>
               </div></div>
               <Remove label={`Remove achievement ${i + 1}`} onClick={() => set({ achievements: t.achievements.filter((_, j) => j !== i) })} />
             </div>
           ))}
         </div>
-        <button type="button" className="ghost add-btn" onClick={() => set({ achievements: [...t.achievements, { title: '', finish: '' }] })}><Plus /> Add achievement</button>
+        <button type="button" className="ghost add-btn" onClick={() => set({ achievements: [...t.achievements, { title: '', finish: '', custom: false }] })}><Plus /> Add achievement</button>
       </fieldset>
     </>
   )
