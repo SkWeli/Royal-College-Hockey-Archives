@@ -24,7 +24,7 @@ export default function Timeline() {
   const bySeason = {}
   const push = (s, item) => (bySeason[s] ||= []).push(item)
   db.milestones.forEach((m) => push(m.season, <span key={m.id}>{m.title}</span>))
-  db.teams.forEach((t) => (db.teamAchByTeam[t.id] || []).forEach((a) => push(t.season, <span key={a.id}><Link to={`/teams/${t.id}`}>{db.teamLabel(t)}</Link>: {a.title}, {a.finish}</span>)))
+  db.teams.forEach((t) => (db.podiumByTeam[t.id] || []).forEach((a) => push(t.season, <span key={a.id}><Link to={`/teams/${t.id}`}>{db.teamLabel(t)}</Link>: {a.title}, {a.finish}</span>)))
   db.teams.filter((t) => t.age_group === '1st XI').forEach((t) => {
     const cap = (db.membershipsByTeam[t.id] || []).find((m) => m.role === 'Captain')
     if (cap) push(t.season, <span key={'c' + t.id}>1st XI captain: <Link to={`/players/${cap.player_id}`}>{db.player[cap.player_id]?.full_name}</Link></span>)
@@ -34,26 +34,27 @@ export default function Timeline() {
     <>
       <h1>Timeline</h1>
       <p className="lead">Each row is an age group. Bigger dots mean more recorded matches; a gold ring means the team won an achievement. Click a dot to open the team.</p>
-      <div ref={scroller} style={{ overflowX: 'auto' }}>
+      <div ref={scroller} className="scroll-x">
         <svg className="viz" width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ width: W, maxWidth: 'none' }}>
+          <defs><radialGradient id="dotGrad" cx="35%" cy="30%" r="75%"><stop offset="0" stopColor="#c9dbff" /><stop offset="1" stopColor="#2a54b0" /></radialGradient></defs>
           {allYears.map((y) => (
             <g key={y}>
-              <line x1={x(y)} x2={x(y)} y1={top - 4} y2={H - 6} stroke="#eef0f5" />
-              <text x={x(y)} y={16} fontSize="11" textAnchor="middle" fill="#5d6475">{y}</text>
+              <line x1={x(y)} x2={x(y)} y1={top - 4} y2={H - 6} className="grid-line" />
+              <text x={x(y)} y={16} fontSize="11" textAnchor="middle">{y}</text>
             </g>
           ))}
-          {lanes.map((l) => <text key={l} x={8} y={ly(l) + 4} fontSize="12" fill="#1b1f2a">{ageLabel(l)}</text>)}
+          {lanes.map((l) => <text key={l} x={8} y={ly(l) + 4} fontSize="12" className="lane-label">{ageLabel(l)}</text>)}
           {db.teams.map((t) => {
-            const r = record(db.matchesByTeam[t.id] || []), honour = db.teamAchByTeam[t.id]
+            const r = record(db.matchesByTeam[t.id] || []), honour = db.podiumByTeam[t.id]
             return (
-              <circle key={t.id} className="tl-dot" cx={x(t.season)} cy={ly(t.age_group)} r={6 + Math.min(r.P, 10) * 0.7} fill="#10275e"
-                stroke={honour ? '#d4a017' : '#fff'} strokeWidth={honour ? 3.5 : 1.5} onClick={() => nav(`/teams/${t.id}`)}>
+              <circle key={t.id} className="tl-dot" cx={x(t.season)} cy={ly(t.age_group)} r={6 + Math.min(r.P, 10) * 0.7} fill="url(#dotGrad)"
+                stroke={honour ? '#f5c842' : 'rgba(169,195,255,.55)'} strokeWidth={honour ? 3.5 : 1.5} onClick={() => nav(`/teams/${t.id}`)}>
                 <title>{db.teamLabel(t)} · {(db.membershipsByTeam[t.id] || []).length} players{r.P ? ` · W${r.W} D${r.D} L${r.L}` : ''}{honour ? ` · ${honour.map((h) => h.finish + ' ' + h.title).join(', ')}` : ''}</title>
               </circle>
             )
           })}
           {db.milestones.map((m) => (
-            <g key={m.id}><circle cx={x(m.season)} cy={ly('Club')} r="7" fill="#d4a017" /><title>{m.season}: {m.title}</title></g>
+            <g key={m.id}><circle cx={x(m.season)} cy={ly('Club')} r="7" fill="#f5c842" /><title>{m.season}: {m.title}</title></g>
           ))}
         </svg>
       </div>

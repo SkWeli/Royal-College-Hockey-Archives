@@ -12,10 +12,13 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
+    "3d-force-graph": "^1.80.2",
     "d3": "^7.9.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-router-dom": "^7.18.5"
+    "react-router-dom": "^7.18.5",
+    "three": "^0.187.0",
+    "three-spritetext": "^1.10.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

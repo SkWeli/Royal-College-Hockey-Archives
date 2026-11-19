@@ -1,12 +1,16 @@
+import { Suspense, lazy, useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useData } from '../App.jsx'
 import { CountUp, initials } from '../components.jsx'
 import { batchLabel } from '../data/db.js'
 
-// Top-down hockey pitch drawn in lines, with a gold ball travelling across it.
+const Hero3D = lazy(() => import('../Hero3D.jsx'))
+
+// Flat pitch in perspective: shown if the device can't draw 3D.
 function Pitch() {
   return (
     <svg className="pitch" viewBox="0 0 560 320" aria-hidden="true">
+      <rect className="turf" x="20" y="20" width="520" height="280" rx="6" />
       <rect className="line" x="20" y="20" width="520" height="280" rx="6" />
       <path className="line" d="M280 20 V300 M150 20 V300 M410 20 V300" />
       <path className="line" d="M20 95 A 65 65 0 0 1 20 225 M540 95 A 65 65 0 0 0 540 225" />
@@ -23,23 +27,27 @@ export default function Home() {
   const multi = db.players.filter((p) => colourSports(p).length > 1)
   const seasons = db.teams.map((t) => t.season)
   const span = seasons.length ? Math.max(...seasons) - Math.min(...seasons) + 1 : 0
+  const [flat, setFlat] = useState(false)
+  const fail = useCallback(() => setFlat(true), [])
 
   return (
     <>
       <section className="hero">
+        {flat
+          ? <div className="hero-canvas fallback"><Pitch /></div>
+          : <Suspense fallback={<div className="hero-canvas" />}><Hero3D onFail={fail} /></Suspense>}
         <div className="hero-inner">
-          <div>
+          <div className="hero-copy">
             <div className="eyebrow">Royal College, Colombo</div>
-            <h1>Every player, every match, <em>every achievement.</em></h1>
+            <h1>Every player, every match, <em className="gold-text">every achievement.</em></h1>
             <p>The shared history of Royal College hockey, from the U9s to the 1st XI. Built by old boys, one memory and one scorebook at a time.</p>
             <div className="row">
               <Link className="btn gold" to="/players">Explore players</Link>
               <Link className="btn outline" to="/submit">Add what you remember</Link>
             </div>
           </div>
-          <Pitch />
         </div>
-        <div className="hero-stripe" />
+        <div className="hero-hint" aria-hidden="true"><i />Scroll</div>
       </section>
 
       <main>
