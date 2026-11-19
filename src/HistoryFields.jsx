@@ -224,12 +224,10 @@ export function PlayerBasics({ value, onChange, bioLabel = 'Anything else about 
         <label>Year he joined Royal<input type="number" inputMode="numeric" {...f('joined_year')} placeholder="2008" /></label>
         <label>Batch (year he left Royal)<input type="number" inputMode="numeric" {...f('batch')} placeholder="2021" /></label>
       </div>
-      <div className="two">
-        <label>Country he lives in now
-          <select {...f('residence_country')}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</select>
-        </label>
-        <label>Other sports at Royal (comma separated)<input {...f('other_sports')} placeholder="Boxing, Athletics" /></label>
-      </div>
+      <label>Country he lives in now
+        <select {...f('residence_country')}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</select>
+      </label>
+      <label>Other sports at Royal (comma separated)<input {...f('other_sports')} placeholder="Boxing, Athletics" /></label>
       <label>{bioLabel}<textarea rows="3" {...f('bio')} /></label>
     </>
   )

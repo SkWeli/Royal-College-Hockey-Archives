@@ -1,8 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
-import { EditLink } from '../components.jsx'
 import { MatchTable, PlayerLink, RecordLine } from '../components.jsx'
-import { batchLabel, isAchievement, teamTitle } from '../data/db.js'
+import { batchLabel, teamTitle } from '../data/db.js'
 
 // Captain, vice-captain and secretary first; then seniors (earlier batch) first; unknown batch last.
 const ROLE_ORDER = { Captain: 0, 'Vice-captain': 1, Secretary: 2 }
@@ -28,17 +27,9 @@ export default function TeamPage() {
         {sameGroup[i - 1] && <Link to={`/teams/${sameGroup[i - 1].id}`}>← {db.teamLabel(sameGroup[i - 1])}</Link>}
         {sameGroup[i + 1] && <Link style={{ marginLeft: 'auto' }} to={`/teams/${sameGroup[i + 1].id}`}>{db.teamLabel(sameGroup[i + 1])} →</Link>}
       </div>
-      <EditLink to={`/admin/team/${id}`} />
       <div className="team-title"><div className="eyebrow">Royal College</div><h1>{teamTitle(t)}</h1></div>
       {t.coach && <p className="muted">Coach: {t.coach}</p>}
-      {(db.podiumByTeam[id] || []).map((a) => <span key={a.id} className="pill gold">{a.title}: {a.finish}</span>)}
-      {(db.teamAchByTeam[id] || []).length > 0 && (<>
-        <h2>Season results</h2>
-        <table className="results-table">
-          <thead><tr><th>Tournament or trophy</th><th>Result</th></tr></thead>
-          <tbody>{db.teamAchByTeam[id].map((a) => <tr key={a.id}><td>{a.title}</td><td>{isAchievement(a) ? <span className="pill gold" style={{ margin: 0 }}>{a.finish}</span> : a.finish}</td></tr>)}</tbody>
-        </table>
-      </>)}
+      {(db.teamAchByTeam[id] || []).map((a) => <span key={a.id} className="pill gold">{a.title}: {a.finish}</span>)}
       <h2>Squad</h2>
       {squad.length ? (
         <div className="squad stagger">

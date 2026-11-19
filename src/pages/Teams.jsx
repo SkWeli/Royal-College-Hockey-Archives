@@ -21,7 +21,7 @@ export default function Teams() {
                 {groups.map((g) => {
                   const t = find(g, s)
                   if (!t) return <td key={g} />
-                  const n = (db.membershipsByTeam[t.id] || []).length, honours = db.podiumByTeam[t.id]
+                  const n = (db.membershipsByTeam[t.id] || []).length, honours = db.teamAchByTeam[t.id]
                   return <td key={g}><Link to={`/teams/${t.id}`}>{n} players</Link>{honours && <span className="pill gold" title={honours.map((h) => `${h.title}: ${h.finish}`).join(', ')}>★</span>}</td>
                 })}
               </tr>

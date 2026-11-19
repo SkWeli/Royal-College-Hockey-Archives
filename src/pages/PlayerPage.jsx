@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
-import { EditLink } from '../components.jsx'
 import { AGE_GROUPS, ageLabel, batchLabel, demoMode, honourLabel, loadContact, yearsAtRoyal } from '../data/db.js'
 import { TeamLink, initials } from '../components.jsx'
 
@@ -58,7 +57,6 @@ export default function PlayerPage() {
 
   return (
     <>
-      <EditLink to={`/admin/player/${id}`} />
       <div className="profile-head">
         <div className="avatar">{initials(p.full_name)}</div>
         <div>
