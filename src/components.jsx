@@ -24,19 +24,19 @@ export function MatchTable({ db, matches, showTeam = false }) {
   if (!matches?.length) return <p className="muted">No matches recorded yet.</p>
   const sorted = [...matches].sort((a, b) => (a.match_date || '').localeCompare(b.match_date || ''))
   return (
-    <table className="stack">
+    <table>
       <thead><tr><th>Date</th>{showTeam && <th>Team</th>}<th>Opponent</th><th>Score</th><th>Competition</th><th>Venue</th></tr></thead>
       <tbody>
         {sorted.map((m) => {
           const o = db.opponent[m.opponent_id], v = db.venue[m.venue_id], tr = db.tournament[m.tournament_id], r = result(m)
           return (
             <tr key={m.id}>
-              <td data-l="Date"><Link to={`/matches/${m.id}`}>{m.match_date || 'Date unknown'}</Link></td>
-              {showTeam && <td data-l="Team"><TeamLink db={db} t={db.team[m.team_id]} /></td>}
-              <td data-l="Opponent">{o ? <Link to={`/opponents/${o.id}`}>{o.name}</Link> : '—'}</td>
-              <td data-l="Score"><span>{r && <span className={`res ${r}`}>{r}</span>}{m.score_for ?? '?'}–{m.score_against ?? '?'}</span></td>
-              <td data-l="Competition">{tr?.name}{m.stage ? ` · ${m.stage}` : ''}</td>
-              <td data-l="Venue">{v ? <Link to={`/venues/${v.id}`}>{v.name}</Link> : '—'}</td>
+              <td><Link to={`/matches/${m.id}`}>{m.match_date || 'Date unknown'}</Link></td>
+              {showTeam && <td><TeamLink db={db} t={db.team[m.team_id]} /></td>}
+              <td>{o ? <Link to={`/opponents/${o.id}`}>{o.name}</Link> : '—'}</td>
+              <td>{r && <span className={`res ${r}`}>{r} </span>}{m.score_for ?? '?'}–{m.score_against ?? '?'}</td>
+              <td>{tr?.name}{m.stage ? ` · ${m.stage}` : ''}</td>
+              <td>{v ? <Link to={`/venues/${v.id}`}>{v.name}</Link> : '—'}</td>
             </tr>
           )
         })}

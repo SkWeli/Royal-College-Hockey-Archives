@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { demoMode, index, loadAll } from './data/db.js'
-import { useScrollReveal, useTilt } from './motion.js'
 import Home from './pages/Home.jsx'
 import Players from './pages/Players.jsx'
 import PlayerPage from './pages/PlayerPage.jsx'
@@ -66,17 +65,13 @@ export default function App() {
     return () => window.removeEventListener('scroll', on)
   }, [])
   useRipples()
-  useTilt()
   const isHome = loc.pathname === '/'
-  // Reveal on public reading pages only; forms and admin stay still for speed of work.
-  useScrollReveal(`${loc.pathname}|${!!db}`, !!db && !/^\/(admin|submit)/.test(loc.pathname))
 
   return (
     <DataCtx.Provider value={{ db, reload }}>
-      <div className="bg-fx" aria-hidden="true"><div className="orb o1" /><div className="orb o2" /><div className="orb o3" /><div className="grid-floor" /><div className="noise" /></div>
       <header className="top">
         <div className="top-inner">
-          <Link to="/" className="brand"><Crest /><span className="bt">Royal College Hockey Archives</span></Link>
+          <Link to="/" className="brand"><Crest />Royal College Hockey Archives</Link>
           <button className={`menu-btn ${menu ? 'open' : ''}`} aria-label="Menu" aria-expanded={menu} onClick={() => setMenu(!menu)}><span /><span /><span /></button>
           <nav className={menu ? 'open' : ''}>
             <NavLink to="/players">Players</NavLink>

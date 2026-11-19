@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
-import { EditLink } from '../components.jsx'
 import { AGE_GROUPS, ageLabel, batchLabel, demoMode, honourLabel, loadContact, yearsAtRoyal } from '../data/db.js'
 import { TeamLink, initials } from '../components.jsx'
 
@@ -15,27 +14,26 @@ function Journey({ db, teams, achievements }) {
   const H = top + (groups.length + 1) * laneH + 10
   return (
     <svg className="viz" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Player journey by season">
-          <defs><radialGradient id="dotGrad" cx="35%" cy="30%" r="75%"><stop offset="0" stopColor="#c9dbff" /><stop offset="1" stopColor="#2a54b0" /></radialGradient></defs>
       {Array.from({ length: y1 - y0 + 1 }, (_, i) => y0 + i).map((y) => (
-        <g key={y}><line x1={x(y)} x2={x(y)} y1={top - 6} y2={H - 6} className="grid-line" /><text x={x(y)} y={14} fontSize="11" textAnchor="middle">{y}</text></g>
+        <g key={y}><line x1={x(y)} x2={x(y)} y1={top - 6} y2={H - 6} stroke="#eef0f5" /><text x={x(y)} y={14} fontSize="11" textAnchor="middle" fill="#5d6475">{y}</text></g>
       ))}
       {groups.map((g, i) => {
         const yy = top + i * laneH + laneH / 2
         const ts = teams.filter((t) => t.age_group === g)
         return (
           <g key={g}>
-            <text x={8} y={yy + 4} fontSize="12" className="lane-label">{ageLabel(g)}</text>
+            <text x={8} y={yy + 4} fontSize="12" fill="#1b1f2a">{ageLabel(g)}</text>
             {ts.map((t) => (
               <Link key={t.id} to={`/teams/${t.id}`}>
-                <circle cx={x(t.season)} cy={yy} r={t.role === 'Captain' ? 9 : 7} className="tl-dot" fill="url(#dotGrad)" stroke={t.role === 'Captain' ? '#f5c842' : 'rgba(169,195,255,.5)'} strokeWidth="3" style={{ animation: `rise .5s var(--ease) ${i * 60}ms both` }}><title>{db.teamLabel(t)}{t.role ? ` (${t.role})` : ''}</title></circle>
+                <circle cx={x(t.season)} cy={yy} r={t.role === 'Captain' ? 9 : 7} className="tl-dot" fill="#10275e" stroke={t.role === 'Captain' ? '#f2b705' : 'none'} strokeWidth="3" style={{ animation: `rise .5s var(--ease) ${i * 60}ms both` }}><title>{db.teamLabel(t)}{t.role ? ` (${t.role})` : ''}</title></circle>
               </Link>
             ))}
           </g>
         )
       })}
-      <text x={8} y={top + groups.length * laneH + laneH / 2 + 4} fontSize="12" className="lane-label">Achievements</text>
+      <text x={8} y={top + groups.length * laneH + laneH / 2 + 4} fontSize="12" fill="#1b1f2a">Achievements</text>
       {achievements.filter((a) => a.season).map((a, i) => (
-        <rect key={a.id} x={x(a.season) - 6 + (i % 3) * 4} y={top + groups.length * laneH + laneH / 2 - 6} width="12" height="12" transform={`rotate(45 ${x(a.season) + (i % 3) * 4} ${top + groups.length * laneH + laneH / 2})`} fill="#f5c842"><title>{a.season}: {honourLabel(a)}</title></rect>
+        <rect key={a.id} x={x(a.season) - 6 + (i % 3) * 4} y={top + groups.length * laneH + laneH / 2 - 6} width="12" height="12" transform={`rotate(45 ${x(a.season) + (i % 3) * 4} ${top + groups.length * laneH + laneH / 2})`} fill="#d4a017"><title>{a.season}: {honourLabel(a)}</title></rect>
       ))}
     </svg>
   )
@@ -59,7 +57,6 @@ export default function PlayerPage() {
 
   return (
     <>
-      <EditLink to={`/admin/player/${id}`} />
       <div className="profile-head">
         <div className="avatar">{initials(p.full_name)}</div>
         <div>

@@ -1,10 +1,7 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import * as d3 from 'd3'
 import { useData } from '../App.jsx'
-
-const Graph3D = lazy(() => import('../Graph3D.jsx'))
-const can3D = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')) && !matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false } }
 
 const COLORS = { player: '#8fb0ff', team: '#f2c230', achievement: '#f08a5d', opponent: '#9aa3c0' }
 
@@ -52,15 +49,10 @@ export default function Graph() {
   const [from, setFrom] = useState(minY), [to, setTo] = useState(maxY)
   const [showHonours, setShowHonours] = useState(true), [showOpponents, setShowOpponents] = useState(false)
   const [q, setQ] = useState(''), [info, setInfo] = useState('Click a dot to highlight its links. Double-click to open its page.')
-  const ref = useRef(), api = useRef({}), api3 = useRef(null)
-  const [mode, setMode] = useState(() => (can3D() ? '3d' : '2d'))
-  const [sel, setSel] = useState(null)
-  // On touch screens the graph only takes over the finger after a tap, so the page can still scroll past it.
-  const [touchOn, setTouchOn] = useState(() => !matchMedia('(pointer: coarse)').matches)
+  const ref = useRef(), api = useRef({})
   const graph = useMemo(() => buildGraph(db, { from, to, showHonours, showOpponents, fullRange: from <= minY && to >= maxY }), [db, from, to, showHonours, showOpponents, minY, maxY])
 
   useEffect(() => {
-    if (mode !== '2d' || !ref.current) return
     const W = 1000, H = 640, svg = d3.select(ref.current)
     svg.selectAll('*').remove()
     const g = svg.append('g')
@@ -98,12 +90,10 @@ export default function Graph() {
     })
     api.current = { nodes, focus }
     return () => sim.stop()
-  }, [graph, nav, mode])
+  }, [graph, nav])
 
   const search = (e) => {
     e.preventDefault()
-    if (!q.trim()) return
-    if (mode === '3d') { if (!api3.current?.find(q)) setInfo(`No match for "${q}" in this range.`); return }
     const d = api.current.nodes?.find((n) => n.label.toLowerCase().includes(q.toLowerCase()))
     if (d) api.current.focus(d); else setInfo(`No match for "${q}" in this range.`)
   }
@@ -111,13 +101,9 @@ export default function Graph() {
   return (
     <>
       <h1>Network</h1>
-      <p className="lead">How players, teams and achievements connect, in three dimensions. Players who share an achievement gather around it; gold streams mark captains.</p>
-      <div className="row graph-controls">
-        <div className="seg" role="group" aria-label="View">
-          <button className={mode === '3d' ? 'on' : ''} aria-pressed={mode === '3d'} onClick={() => { setMode('3d'); setSel(null) }}>3D</button>
-          <button className={mode === '2d' ? 'on' : ''} aria-pressed={mode === '2d'} onClick={() => setMode('2d')}>2D</button>
-        </div>
-        <label className="small">From <input type="number" value={from} min={minY} max={to} onChange={(e) => setFrom(+e.target.value)} style={{ width: 92 }} /></label>
+      <p className="lead">How players, teams and achievements connect. Players who share an achievement gather around it.</p>
+      <div className="row">
+        <label className="small">From <input type="number" value={from} min={minY} max={to} onChange={(e) => setFrom(+e.target.value)} style={{ width: 90 }} /></label>
         <label className="small">To <input type="number" value={to} min={from} max={maxY} onChange={(e) => setTo(+e.target.value)} style={{ width: 90 }} /></label>
         <label className="small"><input type="checkbox" checked={showHonours} onChange={(e) => setShowHonours(e.target.checked)} /> Achievements</label>
         <label className="small"><input type="checkbox" checked={showOpponents} onChange={(e) => setShowOpponents(e.target.checked)} /> Opponents</label>
@@ -128,26 +114,10 @@ export default function Graph() {
       <div className="legend row">
         {Object.entries(COLORS).map(([k, c]) => <span key={k}><i style={{ background: c }} />{k[0].toUpperCase() + k.slice(1)}</span>)}
         <span><i style={{ background: '#d4a017', borderRadius: 0, height: 3, width: 16 }} />Captain link</span>
-        <span className="muted" style={{ marginLeft: 'auto' }}>{mode === '3d' ? (sel ? '' : 'Drag to rotate · scroll or pinch to zoom · click a dot to fly to it') : info}</span>
+        <span className="muted" style={{ marginLeft: 'auto' }}>{info}</span>
       </div>
-      {mode === '3d' ? (
-        <div className="graph-wrap">
-          <Suspense fallback={<div className="sk" style={{ height: '100%', borderRadius: 0 }} />}>
-            <Graph3D graph={graph} colors={COLORS} apiRef={api3} onSelect={setSel} />
-          </Suspense>
-          {!touchOn && <button className="graph-cover" onClick={() => setTouchOn(true)}><span className="btn gold">Tap to explore in 3D</span></button>}
-          {sel && (
-            <div className="graph-panel" role="status">
-              <span><b>{sel.label}</b> · {sel.count} connection{sel.count === 1 ? '' : 's'}</span>
-              {sel.href && <Link className="btn gold" to={sel.href} style={{ minHeight: 36, padding: '.4rem .9rem' }}>Open page</Link>}
-              <button className="ghost" style={{ minHeight: 36, padding: '.4rem .9rem' }} onClick={() => api3.current?.reset()}>Show all</button>
-            </div>
-          )}
-        </div>
-      ) : (<>
-        <svg ref={ref} className="viz dark" viewBox="0 0 1000 640" style={{ height: 'min(70vh, 640px)' }} />
-        <p className="small muted">Scroll to zoom, drag the background to pan, and drag dots to rearrange.</p>
-      </>)}
+      <svg ref={ref} className="viz dark" viewBox="0 0 1000 640" style={{ height: 'min(70vh, 640px)' }} />
+      <p className="small muted">Scroll to zoom, drag the background to pan, and drag dots to rearrange.</p>
     </>
   )
 }

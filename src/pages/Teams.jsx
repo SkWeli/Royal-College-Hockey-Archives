@@ -15,7 +15,7 @@ export default function Teams() {
     <>
       <h1>Teams</h1>
       <p className="lead">Every age-group team by season. A gold star means the team won the All-Island or National Schools championship that year.</p>
-      <div className="scroll-x teams-table">
+      <div style={{ overflowX: 'auto' }}>
         <table>
           <thead><tr><th>Season</th>{groups.map((g) => <th key={g}>{ageLabel(g)}</th>)}</tr></thead>
           <tbody>
@@ -32,20 +32,6 @@ export default function Teams() {
             ))}
           </tbody>
         </table>
-      </div>
-      {/* Phones: one card per season */}
-      <div className="season-cards stagger">
-        {seasons.map((s, i) => (
-          <div key={s} className="card" style={{ '--i': i }}>
-            <div className="yr">{s}</div>
-            {groups.map((g) => {
-              const t = find(g, s)
-              if (!t) return null
-              const n = (db.membershipsByTeam[t.id] || []).length, star = wonStar(db.teamAchByTeam[t.id]).length > 0
-              return <Link key={g} className={`pill ${star ? 'gold' : ''}`} to={`/teams/${t.id}`}>{ageLabel(g)} · {n} players{star ? ' ★' : ''}</Link>
-            })}
-          </div>
-        ))}
       </div>
     </>
   )
