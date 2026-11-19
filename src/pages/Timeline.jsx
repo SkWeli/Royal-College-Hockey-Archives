@@ -24,7 +24,7 @@ export default function Timeline() {
   const bySeason = {}
   const push = (s, item) => (bySeason[s] ||= []).push(item)
   db.milestones.forEach((m) => push(m.season, <span key={m.id}>{m.title}</span>))
-  db.teams.forEach((t) => (db.teamAchByTeam[t.id] || []).forEach((a) => push(t.season, <span key={a.id}><Link to={`/teams/${t.id}`}>{db.teamLabel(t)}</Link>: {a.title}, {a.finish}</span>)))
+  db.teams.forEach((t) => (db.podiumByTeam[t.id] || []).forEach((a) => push(t.season, <span key={a.id}><Link to={`/teams/${t.id}`}>{db.teamLabel(t)}</Link>: {a.title}, {a.finish}</span>)))
   db.teams.filter((t) => t.age_group === '1st XI').forEach((t) => {
     const cap = (db.membershipsByTeam[t.id] || []).find((m) => m.role === 'Captain')
     if (cap) push(t.season, <span key={'c' + t.id}>1st XI captain: <Link to={`/players/${cap.player_id}`}>{db.player[cap.player_id]?.full_name}</Link></span>)
@@ -44,7 +44,7 @@ export default function Timeline() {
           ))}
           {lanes.map((l) => <text key={l} x={8} y={ly(l) + 4} fontSize="12" fill="#1b1f2a">{ageLabel(l)}</text>)}
           {db.teams.map((t) => {
-            const r = record(db.matchesByTeam[t.id] || []), honour = db.teamAchByTeam[t.id]
+            const r = record(db.matchesByTeam[t.id] || []), honour = db.podiumByTeam[t.id]
             return (
               <circle key={t.id} className="tl-dot" cx={x(t.season)} cy={ly(t.age_group)} r={6 + Math.min(r.P, 10) * 0.7} fill="#10275e"
                 stroke={honour ? '#d4a017' : '#fff'} strokeWidth={honour ? 3.5 : 1.5} onClick={() => nav(`/teams/${t.id}`)}>

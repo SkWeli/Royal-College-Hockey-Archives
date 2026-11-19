@@ -73,13 +73,16 @@ export default function Graph() {
     node.append('circle').attr('r', (d) => ({ player: 8, team: 10, achievement: 9, opponent: 7 }[d.kind])).attr('fill', (d) => COLORS[d.kind]).attr('stroke', '#050f2c').attr('stroke-width', 1.5)
     node.append('text').text((d) => d.label).attr('x', 12).attr('y', 4).attr('font-size', 11).attr('fill', '#e6ebf7').attr('paint-order', 'stroke').attr('stroke', '#050f2c').attr('stroke-width', 3)
 
+    // Highlight one node, or several (a search can match many), with everything linked to them.
     const focus = (d) => {
-      if (!d) { node.transition().duration(250).style('opacity', 1); link.transition().duration(250).style('opacity', 1); return }
-      const nb = new Set([d.id])
-      links.forEach((l) => { if (l.source.id === d.id) nb.add(l.target.id); if (l.target.id === d.id) nb.add(l.source.id) })
+      if (!d || (Array.isArray(d) && !d.length)) { node.transition().duration(250).style('opacity', 1); link.transition().duration(250).style('opacity', 1); return }
+      const picked = new Set((Array.isArray(d) ? d : [d]).map((x) => x.id))
+      const nb = new Set(picked)
+      links.forEach((l) => { if (picked.has(l.source.id)) nb.add(l.target.id); if (picked.has(l.target.id)) nb.add(l.source.id) })
       node.transition().duration(250).style('opacity', (x) => (nb.has(x.id) ? 1 : 0.12))
-      link.transition().duration(250).style('opacity', (l) => (l.source.id === d.id || l.target.id === d.id ? 1 : 0.04))
-      setInfo(`${d.label}: ${nb.size - 1} connection${nb.size === 2 ? '' : 's'}${d.href ? ' · double-click to open' : ''}`)
+      link.transition().duration(250).style('opacity', (l) => (picked.has(l.source.id) || picked.has(l.target.id) ? 1 : 0.04))
+      if (Array.isArray(d) && d.length > 1) setInfo(`${d.length} matches, highlighted with their links`)
+      else { const one = Array.isArray(d) ? d[0] : d; setInfo(`${one.label}: ${nb.size - 1} connection${nb.size === 2 ? '' : 's'}${one.href ? ' · double-click to open' : ''}`) }
     }
     node.on('click', (e, d) => { e.stopPropagation(); focus(d) })
     node.on('dblclick', (e, d) => d.href && nav(d.href))
@@ -94,8 +97,8 @@ export default function Graph() {
 
   const search = (e) => {
     e.preventDefault()
-    const d = api.current.nodes?.find((n) => n.label.toLowerCase().includes(q.toLowerCase()))
-    if (d) api.current.focus(d); else setInfo(`No match for "${q}" in this range.`)
+    const found = (api.current.nodes || []).filter((n) => n.label.toLowerCase().includes(q.trim().toLowerCase()))
+    if (q.trim() && found.length) api.current.focus(found); else setInfo(`No match for "${q}" in this range.`)
   }
 
   return (
