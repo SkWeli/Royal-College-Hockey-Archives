@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  AGE_GROUPS, COUNTRIES, HOCKEY_ACHIEVEMENTS, KNOWN_COACHES, OTHER_ACHIEVEMENTS, SPORTS, ageLabel, batchLabel, competitionsFor,
+  AGE_GROUPS, COUNTRIES, HOCKEY_ACHIEVEMENTS, KNOWN_COACHES, KNOWN_VENUES, OTHER_ACHIEVEMENTS, SPORTS, ageLabel, batchLabel, competitionsFor,
   deleteRow, ensureTeam, findOrCreate, honourLabel, insertRow, isAchievement, mergePlayers, resultsFor, rolesFor, supabase,
   teamTitle, updateRow, upsertRow, demoMode,
 } from '../data/db.js'
@@ -355,10 +355,12 @@ export function TeamEditor({ db, id, reload }) {
           { k: 'opponent', label: 'Opponent', req: true, list: opponents, w: 2 }, { k: 'match_date', label: 'Date', type: 'date' },
           { k: 'competition', label: 'Tournament or trophy', list: compNames, w: 2 },
           { k: 'score_for', label: 'Royal', type: 'number' }, { k: 'score_against', label: 'Opp.', type: 'number' },
-        ]} onAdd={async ({ opponent, match_date, competition, score_for, score_against }) => {
+          { k: 'venue', label: 'Venue', list: [...new Set([...KNOWN_VENUES, ...db.venues.map((v) => v.name)])].sort(), w: 1.5 },
+        ]} onAdd={async ({ opponent, match_date, competition, score_for, score_against, venue }) => {
           const o = await findOrCreate('opponents', { name: opponent }, { name: opponent })
+          const ven = venue ? await findOrCreate('venues', { name: venue }, { name: venue }) : null
           const c = competition ? await findOrCreate('tournaments', { name: competition, season: t.season }, { name: competition, season: t.season, level: comps.trophies.some((x) => x.name === competition) ? 'Trophy match' : 'Tournament' }) : null
-          await insertRow('matches', { team_id: id, opponent_id: o.id, tournament_id: c?.id || null, match_date, score_for, score_against })
+          await insertRow('matches', { team_id: id, opponent_id: o.id, tournament_id: c?.id || null, venue_id: ven?.id || null, match_date, score_for, score_against })
         }} />
       </Section>
 
@@ -389,7 +391,7 @@ export function MatchEditor({ db, id, reload }) {
   ]
   const details2 = [
     { k: 'score_for', label: 'Royal goals', type: 'number' }, { k: 'score_against', label: 'Opp. goals', type: 'number' },
-    { k: 'stage', label: 'Stage' }, { k: 'venue', label: 'Venue', list: db.venues.map((v) => v.name).sort(), w: 1.5 },
+    { k: 'stage', label: 'Stage' }, { k: 'venue', label: 'Venue', list: [...new Set([...KNOWN_VENUES, ...db.venues.map((v) => v.name)])].sort(), w: 1.5 },
     { k: 'notes', label: 'Notes', type: 'textarea', w: 2 }, { k: 'source', label: 'Source', w: 1.3 },
   ]
   const saveDetails = async (patch) => {

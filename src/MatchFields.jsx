@@ -1,4 +1,4 @@
-import { AGE_GROUPS, ageLabel, competitionsFor, trophyFor } from './data/db.js'
+import { AGE_GROUPS, KNOWN_VENUES, ageLabel, competitionsFor, trophyFor } from './data/db.js'
 import { CompetitionSelect } from './TeamFields.jsx'
 
 // Shared by the public Submit form and the admin match form.
@@ -37,7 +37,7 @@ export const matchForm = (d) => ({
 export default function MatchFields({ value: m, onChange, db }) {
   const set = (patch) => onChange({ ...m, ...patch })
   const opponents = [...new Set([...(db?.opponents || []).map((o) => o.name), ...AGE_GROUPS.flatMap((g) => competitionsFor(g).trophies.map((t) => t.opponent))])].sort()
-  const venues = (db?.venues || []).map((v) => v.name).sort()
+  const venues = [...new Set([...KNOWN_VENUES, ...(db?.venues || []).map((v) => v.name)])].sort()
   return (
     <>
       <div className="two">
@@ -67,7 +67,7 @@ export default function MatchFields({ value: m, onChange, db }) {
       </div>
       <div className="two">
         <label>Stage (e.g. Final, Semi-final)<input value={m.stage} onChange={(e) => set({ stage: e.target.value })} /></label>
-        <label>Venue<input list="known-venues" value={m.venue} onChange={(e) => set({ venue: e.target.value })} /></label>
+        <label>Venue<input list="known-venues" placeholder="Choose or type a venue" value={m.venue} onChange={(e) => set({ venue: e.target.value })} /></label>
       </div>
       <label>Royal goalscorers<textarea rows="2" placeholder="e.g. Senuda Weliwatta 2, Karim Ishak" value={m.scorers} onChange={(e) => set({ scorers: e.target.value })} /></label>
       <label>Notes<textarea rows="2" value={m.notes} onChange={(e) => set({ notes: e.target.value })} /></label>

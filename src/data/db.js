@@ -104,6 +104,8 @@ export const SPORT_COLOUR_ROLES = ['Captain', 'Vice-Captain']
 export const SPORTS = ['Athletics', 'Badminton', 'Basketball', 'Boxing', 'Chess', 'Cricket', 'Cycling', 'Football', 'Golf', 'Judo', 'Karate', 'Rifle Shooting', 'Rowing', 'Rugby', 'Squash', 'Swimming', 'Table Tennis', 'Taekwondo', 'Tennis', 'Volleyball', 'Water Polo', 'Wrestling']
 const NON_SPORT = new Set(OTHER_ACHIEVEMENTS.map((g) => g.key))
 export const MAX_YEARS = 10
+// Venues offered in every match form (others typed in are added to the archive too).
+export const KNOWN_VENUES = ['Astro Turf, Colombo', 'Astro Turf, Matale', 'Colombo University Grounds', 'RC Grounds', 'STC Grounds']
 export const KNOWN_COACHES = ['Mr. Ashok Peiris', 'Mr. Mulaafar', 'Mr. Rohan Dissanayake', 'Mr. Vasantha de Silva']
 // Team competitions by age group. Trophy matches are against one school.
 export const TOURNAMENT_RESULTS = ['Champions', 'Runners-Up', '2nd Runners-Up', '4th Place', 'Quarter-Finals', 'Pre-Quarter-Finals', 'Group Stage']
