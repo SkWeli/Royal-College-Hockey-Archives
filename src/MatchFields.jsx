@@ -1,4 +1,4 @@
-import { AGE_GROUPS, competitionsFor, trophyFor } from './data/db.js'
+import { AGE_GROUPS, ageLabel, competitionsFor, trophyFor } from './data/db.js'
 import { CompetitionSelect } from './TeamFields.jsx'
 
 // Shared by the public Submit form and the admin match form.
@@ -44,7 +44,7 @@ export default function MatchFields({ value: m, onChange, db }) {
         <label>Royal team *
           <select value={m.age_group} onChange={(e) => set({ age_group: e.target.value })}>
             <option value="">Choose a team…</option>
-            {AGE_GROUPS.map((g) => <option key={g} value={g}>{g === '1st XI' ? '1st XI' : `${g} team`}</option>)}
+            {AGE_GROUPS.map((g) => <option key={g} value={g}>{g === '1st XI' ? '1st XI' : `${ageLabel(g)} team`}</option>)}
           </select>
         </label>
         <label>Year *<input type="number" inputMode="numeric" placeholder="2019" value={m.season} onChange={(e) => set({ season: e.target.value })} /></label>

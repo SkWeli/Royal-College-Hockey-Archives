@@ -65,7 +65,7 @@ export default function Submit() {
       <h1>Submit information</h1>
       <p className="lead">Know a player, a team, a match result or an achievement that's missing, or spotted a mistake? Send it here. The admin checks every submission before adding it to the archive.</p>
       <div className="tabs">{Object.keys(KINDS).map((k) => <button key={k} type="button" className={k === kind ? 'on' : 'ghost'} onClick={() => { setKind(k); setVals({}); setState({}) }}>{k}</button>)}</div>
-      <div className="form-card">
+      <div className="form-card wide">
       <form className="stack" onSubmit={submit}>
         {kind === 'Match' && <MatchFields db={db} value={match} onChange={(v) => { setMatch(v); setState({}) }} />}
         {kind === 'Team' && <TeamFields db={db} value={team} onChange={(v) => { setTeam(v); setState({}) }} />}
@@ -77,13 +77,15 @@ export default function Submit() {
           </label>
         ))}
         <h2 style={{ margin: '.6rem 0 0' }}>About you</h2>
+        <div className="two">
         <label>Your name *<input value={who.submitter_name} onChange={(e) => setW('submitter_name', e.target.value)} /></label>
         <label>Your batch (year you left Royal)<input type="number" inputMode="numeric" value={who.submitter_batch} onChange={(e) => setW('submitter_batch', e.target.value)} placeholder="2021" /></label>
-        <label>Phone or email, so the admin can check details with you
+        <label>Your phone or email
           <input value={who.submitter_contact} onChange={(e) => setW('submitter_contact', e.target.value)} placeholder="+94 77 123 4567" />
         </label>
+        </div>
         <input type="text" name="botcheck" value={who.botcheck} onChange={(e) => setW('botcheck', e.target.value)} tabIndex="-1" autoComplete="off" style={{ display: 'none' }} aria-hidden="true" />
-        <p className="small muted">Your contact details are only seen by the admin and are never shown on the site.</p>
+        <p className="small muted">The admin may contact you to check details. Your contact details are never shown on the site.</p>
         <button className="gold" disabled={state.busy}>{state.busy ? 'Sending…' : 'Submit'}</button>
         {state.errs && <div className="errors" role="alert">Please fix these:<ul>{state.errs.map((e) => <li key={e}>{e}</li>)}</ul></div>}
         {state.err && <p className="error small">{state.err}</p>}

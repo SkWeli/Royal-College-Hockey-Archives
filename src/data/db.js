@@ -39,7 +39,7 @@ export async function insertRow(table, row) {
 export function index(db) {
   const by = (arr) => Object.fromEntries(arr.map((r) => [r.id, r]))
   const group = (arr, k) => arr.reduce((m, r) => ((m[r[k]] ||= []).push(r), m), {})
-  const teamLabel = (t) => (t ? `${t.age_group} ${t.season}` : '')
+  const teamLabel = (t) => (t ? `${ageLabel(t.age_group)} ${t.season}` : '')
   return {
     ...db,
     player: by(db.players), team: by(db.teams), venue: by(db.venues),
@@ -47,7 +47,8 @@ export function index(db) {
     membershipsByPlayer: group(db.team_memberships, 'player_id'),
     membershipsByTeam: group(db.team_memberships, 'team_id'),
     achievementsByPlayer: group(db.achievements, 'player_id'),
-    teamAchByTeam: group(db.team_achievements, 'team_id'),
+    teamAchByTeam: group(db.team_achievements, 'team_id'),            // all season results
+    podiumByTeam: group(db.team_achievements.filter(isAchievement), 'team_id'), // achievements only
     matchesByTeam: group(db.matches, 'team_id'),
     goalsByMatch: group(db.goals, 'match_id'),
     goalsByPlayer: group(db.goals, 'player_id'),
@@ -59,6 +60,9 @@ export const result = (m) =>
   m.score_for == null || m.score_against == null ? '' : m.score_for > m.score_against ? 'W' : m.score_for < m.score_against ? 'L' : 'D'
 
 export const AGE_GROUPS = ['U9', 'U11', 'U13', 'U15', 'U17', '1st XI']
+// Official way to write an age group: U15 → U-15. 1st XI stays as it is.
+export const ageLabel = (g) => (/^U\d+$/.test(g || '') ? `U-${g.slice(1)}` : g || '')
+export const teamTitle = (t) => (t ? `${ageLabel(t.age_group)} Hockey Team ${t.season}` : '')
 export const rolesFor = (ageGroup) => (ageGroup === '1st XI' ? ['Captain', 'Vice-captain', 'Secretary'] : ['Captain', 'Vice-captain'])
 // Achievement groups on the player form. roles: choices per year; ordinal: numbered 1st Year, 2nd Year…
 export const HOCKEY_ACHIEVEMENTS = [
@@ -79,7 +83,7 @@ export const MAX_YEARS = 10
 export const KNOWN_COACHES = ['Mr. Ashok Peiris', 'Mr. Mulaafar', 'Mr. Rohan Dissanayake', 'Mr. Vasantha de Silva']
 // Team competitions by age group. Trophy matches are against one school.
 export const TOURNAMENT_RESULTS = ['Champions', 'Runners-Up', '2nd Runners-Up', '4th Place', 'Quarter-Finals', 'Pre-Quarter-Finals', 'Group Stage']
-export const TROPHY_RESULTS = ['Won', 'Drawn', 'Lost']
+export const TROPHY_RESULTS = ['Winners', 'Drawn', 'Lost']
 export const CARNIVAL_RESULTS = ['Gold Star', 'Silver Star']
 const AI = 'All-Island Schools Hockey Championship', WP = 'Western Province Hockey Championship'
 export const COMPETITIONS = {
@@ -96,6 +100,9 @@ export const COMPETITIONS = {
   U15: { tournaments: [AI, WP], trophies: [] },
   U13: { tournaments: [AI, WP, 'Western Province Hockey Carnival'], trophies: [] },
 }
+// Results that count as the team's achievements (shown in gold, on the timeline and in the Teams grid).
+const PODIUM = new Set(['champions', 'runners-up', '2nd runners-up', '3rd place', 'winners', 'won', 'drawn', 'gold star', 'silver star'])
+export const isAchievement = (a) => PODIUM.has(String(a?.finish || '').trim().toLowerCase())
 export const competitionsFor = (g) => COMPETITIONS[g] || { tournaments: [], trophies: [] }
 export const trophyFor = (name) => Object.values(COMPETITIONS).flatMap((c) => c.trophies).find((t) => t.name === name)
 export function resultsFor(name, ageGroup) {
@@ -154,7 +161,10 @@ export function teamSummary(t) {
   return {
     Team: t.age_group, Year: t.season, Coach: t.coach,
     Squad: t.squad.map((p) => `${p.name}${p.batch ? ` (Batch of ${p.batch})` : ''}${p.role ? `, ${p.role}` : ''}${p.country && p.country !== 'Sri Lanka' ? `, lives in ${p.country}` : ''}`).join('\n'),
-    Achievements: t.achievements.map((a) => `${a.title}${a.finish ? `: ${a.finish}` : ''}`).join('\n'),
+    'Season results': (t.results || []).map((r) => [
+      `${r.title}${r.finish ? `: ${r.finish}` : ''}`,
+      ...r.matches.map((m) => `   vs ${m.opponent}${m.score_for != null ? ` ${m.score_for}–${m.score_against}` : ''}${m.stage ? ` (${m.stage})` : ''}${m.match_date ? `, ${m.match_date}` : ''}`),
+    ].join('\n')).join('\n'),
   }
 }
 
@@ -185,13 +195,22 @@ export async function importTeam(db, t) {
     const { error: e2 } = await supabase.from('team_memberships').upsert({ player_id: p.id, team_id: team.id, role: s.role || null }, { onConflict: 'player_id,team_id' })
     if (e2) throw new Error(e2.message)
   }
+  // Season results: one row per competition (all results kept; podium finishes show as achievements), plus its matches
   const have = new Set((db.teamAchByTeam?.[team.id] || []).map((a) => a.title.toLowerCase()))
-  const ach = t.achievements.filter((a) => !have.has(a.title.trim().toLowerCase())).map((a) => ({ team_id: team.id, title: a.title.trim(), finish: a.finish || null, source: t.source || null }))
-  if (ach.length) {
-    const { error: e3 } = await supabase.from('team_achievements').insert(ach)
-    if (e3) throw new Error(e3.message)
+  let matches = 0
+  for (const r of t.results || []) {
+    if (r.finish && !have.has(r.title.toLowerCase())) {
+      const { error: e3 } = await supabase.from('team_achievements').insert({ team_id: team.id, title: r.title, finish: r.finish, source: t.source || null })
+      if (e3) throw new Error(e3.message)
+      have.add(r.title.toLowerCase())
+    }
+    for (const m of r.matches || []) {
+      await importMatch(db, { ...m, age_group: t.age_group, season: +t.season, competition: r.title === 'Friendly' ? null : r.title,
+        competition_kind: trophyFor(r.title) ? 'Trophy match' : 'Tournament', source: t.source })
+      matches++
+    }
   }
-  return { team, added }
+  return { team, added, matches }
 }
 
 // Editors only: save a player with all his teams and achievements. Reuses an existing player

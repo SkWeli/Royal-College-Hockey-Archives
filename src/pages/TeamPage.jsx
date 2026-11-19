@@ -1,6 +1,10 @@
 import { Link, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
 import { MatchTable, PlayerLink, RecordLine } from '../components.jsx'
+import { batchLabel, isAchievement, teamTitle } from '../data/db.js'
+
+// Captain, vice-captain and secretary first; then seniors (earlier batch) first; unknown batch last.
+const ROLE_ORDER = { Captain: 0, 'Vice-captain': 1, Secretary: 2 }
 
 export default function TeamPage() {
   const { id } = useParams()
@@ -8,7 +12,9 @@ export default function TeamPage() {
   const t = db.team[id]
   if (!t) return <p>Team not found.</p>
   const squad = (db.membershipsByTeam[id] || []).map((m) => ({ ...m, p: db.player[m.player_id] }))
-    .sort((a, b) => (a.role ? 0 : 1) - (b.role ? 0 : 1) || (a.p?.full_name || '').localeCompare(b.p?.full_name || ''))
+    .sort((a, b) => (ROLE_ORDER[a.role] ?? 9) - (ROLE_ORDER[b.role] ?? 9)
+      || (a.p?.batch ?? 9999) - (b.p?.batch ?? 9999)
+      || (a.p?.full_name || '').localeCompare(b.p?.full_name || ''))
   const matches = db.matchesByTeam[id] || []
   const scorers = {}
   for (const m of matches) for (const g of db.goalsByMatch[m.id] || []) if (g.player_id) scorers[g.player_id] = (scorers[g.player_id] || 0) + 1
@@ -21,11 +27,28 @@ export default function TeamPage() {
         {sameGroup[i - 1] && <Link to={`/teams/${sameGroup[i - 1].id}`}>← {db.teamLabel(sameGroup[i - 1])}</Link>}
         {sameGroup[i + 1] && <Link style={{ marginLeft: 'auto' }} to={`/teams/${sameGroup[i + 1].id}`}>{db.teamLabel(sameGroup[i + 1])} →</Link>}
       </div>
-      <h1>{t.age_group} team, {t.season}</h1>
+      <div className="team-title"><div className="eyebrow">Royal College</div><h1>{teamTitle(t)}</h1></div>
       {t.coach && <p className="muted">Coach: {t.coach}</p>}
-      {(db.teamAchByTeam[id] || []).map((a) => <span key={a.id} className="pill gold">{a.title}: {a.finish}</span>)}
+      {(db.podiumByTeam[id] || []).map((a) => <span key={a.id} className="pill gold">{a.title}: {a.finish}</span>)}
+      {(db.teamAchByTeam[id] || []).length > 0 && (<>
+        <h2>Season results</h2>
+        <table className="results-table">
+          <thead><tr><th>Tournament or trophy</th><th>Result</th></tr></thead>
+          <tbody>{db.teamAchByTeam[id].map((a) => <tr key={a.id}><td>{a.title}</td><td>{isAchievement(a) ? <span className="pill gold" style={{ margin: 0 }}>{a.finish}</span> : a.finish}</td></tr>)}</tbody>
+        </table>
+      </>)}
       <h2>Squad</h2>
-      {squad.length ? squad.map((m) => <span key={m.id} className="pill"><PlayerLink p={m.p} />{m.role ? ` · ${m.role}` : ''}</span>) : <p className="muted">No players recorded yet.</p>}
+      {squad.length ? (
+        <div className="squad stagger">
+          {squad.map((m, i) => (
+            <div key={m.id} className={`squad-row ${m.role ? 'officer' : ''}`} style={{ '--i': i }}>
+              <span className="n">{i + 1}</span>
+              <span className="who"><PlayerLink p={m.p} />{m.p?.batch && <span className="small muted">{batchLabel(m.p)}</span>}</span>
+              {m.role ? <span className="role-badge">{m.role}</span> : <span />}
+            </div>
+          ))}
+        </div>
+      ) : <p className="muted">No players recorded yet.</p>}
       <h2>Matches</h2>
       <RecordLine matches={matches} />
       <MatchTable db={db} matches={matches} />

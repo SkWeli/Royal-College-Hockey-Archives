@@ -1,4 +1,4 @@
-import { AGE_GROUPS, COUNTRIES, HOCKEY_ACHIEVEMENTS, MAX_YEARS, OTHER_ACHIEVEMENTS, SPORTS, SPORT_COLOUR_ROLES, ordinal, rolesFor } from './data/db.js'
+import { AGE_GROUPS, ageLabel, COUNTRIES, HOCKEY_ACHIEVEMENTS, MAX_YEARS, OTHER_ACHIEVEMENTS, SPORTS, SPORT_COLOUR_ROLES, ordinal, rolesFor } from './data/db.js'
 
 // Shared by the public Submit form and the admin player form.
 // value = {
@@ -134,7 +134,7 @@ export default function HistoryFields({ value, onChange }) {
         <p className="small muted">Tick each team he played in, choose how many years, then enter each year.</p>
         <div className="hgrid">
           {AGE_GROUPS.map((g) => (
-            <Group key={g} title={g === '1st XI' ? '1st XI' : `${g} team`} ticked={!!v.teams[g]} rows={v.teams[g] || []}
+            <Group key={g} title={g === '1st XI' ? '1st XI' : `${ageLabel(g)} team`} ticked={!!v.teams[g]} rows={v.teams[g] || []}
               onTick={(on) => setIn('teams')(g, on ? [{ year: '', role: '' }] : null)} onRows={(rows) => setIn('teams')(g, rows)} blank={() => ({ year: '', role: '' })}
               renderRow={(r, i, patch) => (
                 <div key={i} className="hrow">
@@ -224,10 +224,12 @@ export function PlayerBasics({ value, onChange, bioLabel = 'Anything else about 
         <label>Year he joined Royal<input type="number" inputMode="numeric" {...f('joined_year')} placeholder="2008" /></label>
         <label>Batch (year he left Royal)<input type="number" inputMode="numeric" {...f('batch')} placeholder="2021" /></label>
       </div>
-      <label>Country he lives in now
-        <select {...f('residence_country')}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</select>
-      </label>
-      <label>Other sports at Royal (comma separated)<input {...f('other_sports')} placeholder="Boxing, Athletics" /></label>
+      <div className="two">
+        <label>Country he lives in now
+          <select {...f('residence_country')}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</select>
+        </label>
+        <label>Other sports at Royal (comma separated)<input {...f('other_sports')} placeholder="Boxing, Athletics" /></label>
+      </div>
       <label>{bioLabel}<textarea rows="3" {...f('bio')} /></label>
     </>
   )

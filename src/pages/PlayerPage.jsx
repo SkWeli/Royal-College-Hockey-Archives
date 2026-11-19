@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
-import { AGE_GROUPS, batchLabel, demoMode, honourLabel, loadContact, yearsAtRoyal } from '../data/db.js'
+import { AGE_GROUPS, ageLabel, batchLabel, demoMode, honourLabel, loadContact, yearsAtRoyal } from '../data/db.js'
 import { TeamLink, initials } from '../components.jsx'
 
 function Journey({ db, teams, achievements }) {
@@ -22,7 +22,7 @@ function Journey({ db, teams, achievements }) {
         const ts = teams.filter((t) => t.age_group === g)
         return (
           <g key={g}>
-            <text x={8} y={yy + 4} fontSize="12" fill="#1b1f2a">{g}</text>
+            <text x={8} y={yy + 4} fontSize="12" fill="#1b1f2a">{ageLabel(g)}</text>
             {ts.map((t) => (
               <Link key={t.id} to={`/teams/${t.id}`}>
                 <circle cx={x(t.season)} cy={yy} r={t.role === 'Captain' ? 9 : 7} className="tl-dot" fill="#10275e" stroke={t.role === 'Captain' ? '#f2b705' : 'none'} strokeWidth="3" style={{ animation: `rise .5s var(--ease) ${i * 60}ms both` }}><title>{db.teamLabel(t)}{t.role ? ` (${t.role})` : ''}</title></circle>

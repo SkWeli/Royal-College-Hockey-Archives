@@ -109,7 +109,7 @@ function PlayerForm({ db, onSaved, initial, onDone }) {
   )
 }
 
-// Add or update a team with its squad and achievements. New players are created.
+// Add or update a team with its squad and season results (and their matches). New players are created.
 function TeamForm({ db, onSaved, initial, onDone }) {
   const [team, setTeam] = useState(initial?.team ? teamForm(initial.team) : emptyTeam())
   const [source, setSource] = useState(initial?.source || '')
@@ -120,8 +120,8 @@ function TeamForm({ db, onSaved, initial, onDone }) {
     if (errs.length) { setSt({ errs }); setTimeout(() => document.querySelector('.errors')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); return }
     setSt({ busy: true })
     try {
-      const { team: t, added } = await importTeam(db, { ...teamData(team), source: source.trim() })
-      setSt({ ok: `Saved ${t.age_group} ${t.season}${added ? `, with ${added} new player${added === 1 ? '' : 's'}` : ''}.` })
+      const { team: t, added, matches } = await importTeam(db, { ...teamData(team), source: source.trim() })
+      setSt({ ok: `Saved ${t.age_group} ${t.season}${added ? `, with ${added} new player${added === 1 ? '' : 's'}` : ''}${matches ? ` and ${matches} match${matches === 1 ? '' : 'es'}` : ''}.` })
       setTeam(emptyTeam()); setSource(''); onSaved(); onDone?.()
     } catch (err) { setSt({ err: err.message }) }
   }
@@ -133,7 +133,7 @@ function TeamForm({ db, onSaved, initial, onDone }) {
       <button className="gold" disabled={st.busy}>{st.busy ? 'Saving…' : 'Save team'}</button>
       {st.err && <p className="error small">{st.err}</p>}
       {st.ok && <p className="ok small">{st.ok}</p>}
-      <p className="small muted">If this team and year already exist, the squad and achievements are added to it. Players are matched by name (and batch, if given); anyone not found is added as a new player.</p>
+      <p className="small muted">If this team and year already exist, the squad and season results are added to it. Players are matched by name (and batch, if given); anyone not found is added as a new player.</p>
     </form>
   )
 }
@@ -238,9 +238,9 @@ export default function Admin() {
           <div className="tabs">{Object.keys(forms).map((k) => <button key={k} className={k === tab ? 'on' : 'ghost'} onClick={() => setTab(k)}>{k}</button>)}</div>
           {tab === 'Submissions' ? <Submissions db={db} onSaved={reload} />
             : tab === 'Data' ? <DataEditor db={db} onChanged={reload} />
-            : tab === 'Player' ? <div className="form-card" style={{ maxWidth: 820 }}><PlayerForm db={db} onSaved={reload} /></div>
-            : tab === 'Team' ? <div className="form-card" style={{ maxWidth: 820 }}><TeamForm db={db} onSaved={reload} /></div>
-            : tab === 'Match' ? <div className="form-card" style={{ maxWidth: 820 }}><MatchForm db={db} onSaved={reload} /></div>
+            : tab === 'Player' ? <div className="form-card" style={{ maxWidth: 1040 }}><PlayerForm db={db} onSaved={reload} /></div>
+            : tab === 'Team' ? <div className="form-card" style={{ maxWidth: 1040 }}><TeamForm db={db} onSaved={reload} /></div>
+            : tab === 'Match' ? <div className="form-card" style={{ maxWidth: 1040 }}><MatchForm db={db} onSaved={reload} /></div>
             : <div className="form-card"><EntryForm key={tab} spec={forms[tab]} onSaved={reload} /></div>}
         </>
       )}

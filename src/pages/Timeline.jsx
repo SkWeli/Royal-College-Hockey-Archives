@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useData } from '../App.jsx'
-import { AGE_GROUPS, honourLabel } from '../data/db.js'
+import { AGE_GROUPS, ageLabel } from '../data/db.js'
 import { record } from '../components.jsx'
 
 export default function Timeline() {
@@ -9,11 +9,12 @@ export default function Timeline() {
   const nav = useNavigate()
   const scroller = useRef()
   useEffect(() => { if (scroller.current) scroller.current.scrollLeft = scroller.current.scrollWidth }, []) // start at the most recent seasons
-  const years = [...db.teams.map((t) => t.season), ...db.milestones.map((m) => m.season), ...db.achievements.map((a) => a.season).filter(Boolean)]
+  // Team history only: individual players' achievements (colours etc.) belong on their own pages.
+  const years = [...db.teams.map((t) => t.season), ...db.milestones.map((m) => m.season)]
   if (!years.length) return <p className="muted">Nothing dated yet.</p>
   const y0 = Math.min(...years), y1 = Math.max(...years)
   const groups = AGE_GROUPS.filter((g) => db.teams.some((t) => t.age_group === g))
-  const lanes = [...groups.slice().reverse(), 'Achievements', 'Club']
+  const lanes = [...groups.slice().reverse(), 'Club']
   const colW = 56, left = 80, laneH = 38, top = 28
   const W = left + (y1 - y0 + 1) * colW + 20, H = top + lanes.length * laneH + 10
   const x = (y) => left + (y - y0) * colW + colW / 2
@@ -23,12 +24,11 @@ export default function Timeline() {
   const bySeason = {}
   const push = (s, item) => (bySeason[s] ||= []).push(item)
   db.milestones.forEach((m) => push(m.season, <span key={m.id}>{m.title}</span>))
-  db.teams.forEach((t) => (db.teamAchByTeam[t.id] || []).forEach((a) => push(t.season, <span key={a.id}><Link to={`/teams/${t.id}`}>{db.teamLabel(t)}</Link>: {a.title}, {a.finish}</span>)))
+  db.teams.forEach((t) => (db.podiumByTeam[t.id] || []).forEach((a) => push(t.season, <span key={a.id}><Link to={`/teams/${t.id}`}>{db.teamLabel(t)}</Link>: {a.title}, {a.finish}</span>)))
   db.teams.filter((t) => t.age_group === '1st XI').forEach((t) => {
     const cap = (db.membershipsByTeam[t.id] || []).find((m) => m.role === 'Captain')
     if (cap) push(t.season, <span key={'c' + t.id}>1st XI captain: <Link to={`/players/${cap.player_id}`}>{db.player[cap.player_id]?.full_name}</Link></span>)
   })
-  db.achievements.filter((a) => a.season).forEach((a) => push(a.season, <span key={a.id}><Link to={`/players/${a.player_id}`}>{db.player[a.player_id]?.full_name}</Link>: {honourLabel(a)}</span>))
 
   return (
     <>
@@ -42,9 +42,9 @@ export default function Timeline() {
               <text x={x(y)} y={16} fontSize="11" textAnchor="middle" fill="#5d6475">{y}</text>
             </g>
           ))}
-          {lanes.map((l) => <text key={l} x={8} y={ly(l) + 4} fontSize="12" fill="#1b1f2a">{l}</text>)}
+          {lanes.map((l) => <text key={l} x={8} y={ly(l) + 4} fontSize="12" fill="#1b1f2a">{ageLabel(l)}</text>)}
           {db.teams.map((t) => {
-            const r = record(db.matchesByTeam[t.id] || []), honour = db.teamAchByTeam[t.id]
+            const r = record(db.matchesByTeam[t.id] || []), honour = db.podiumByTeam[t.id]
             return (
               <circle key={t.id} className="tl-dot" cx={x(t.season)} cy={ly(t.age_group)} r={6 + Math.min(r.P, 10) * 0.7} fill="#10275e"
                 stroke={honour ? '#d4a017' : '#fff'} strokeWidth={honour ? 3.5 : 1.5} onClick={() => nav(`/teams/${t.id}`)}>
@@ -52,13 +52,6 @@ export default function Timeline() {
               </circle>
             )
           })}
-          {Object.entries(db.achievements.filter((a) => a.season).reduce((m, a) => ((m[a.season] ||= []).push(a), m), {})).map(([s, list]) => (
-            <g key={s}>
-              <rect x={x(+s) - 7} y={ly('Achievements') - 7} width="14" height="14" fill="#b4472a" transform={`rotate(45 ${x(+s)} ${ly('Achievements')})`} />
-              {list.length > 1 && <text x={x(+s) + 10} y={ly('Achievements') - 6} fontSize="10" fill="#b4472a">{list.length}</text>}
-              <title>{list.map((a) => `${db.player[a.player_id]?.full_name}: ${honourLabel(a)}`).join('\n')}</title>
-            </g>
-          ))}
           {db.milestones.map((m) => (
             <g key={m.id}><circle cx={x(m.season)} cy={ly('Club')} r="7" fill="#d4a017" /><title>{m.season}: {m.title}</title></g>
           ))}

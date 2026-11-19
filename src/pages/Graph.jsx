@@ -17,7 +17,7 @@ function buildGraph(db, { from, to, showHonours, showOpponents, fullRange }) {
       add(p.id, p.full_name, 'player', `/players/${p.id}`)
       links.push({ source: p.id, target: t.id, captain: m.role === 'Captain' })
     }
-    if (showHonours) for (const a of db.teamAchByTeam[t.id] || []) {
+    if (showHonours) for (const a of db.podiumByTeam[t.id] || []) {
       add('ta:' + a.id, `${a.title}: ${a.finish}`, 'achievement'); links.push({ source: t.id, target: 'ta:' + a.id })
     }
     if (showOpponents) for (const m of db.matchesByTeam[t.id] || []) {
