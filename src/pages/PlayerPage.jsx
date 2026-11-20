@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
+import { EditLink } from '../components.jsx'
 import { AGE_GROUPS, ageLabel, batchLabel, demoMode, honourLabel, loadContact, yearsAtRoyal } from '../data/db.js'
 import { TeamLink, initials } from '../components.jsx'
 
@@ -57,6 +58,7 @@ export default function PlayerPage() {
 
   return (
     <>
+      <EditLink to={`/admin/player/${id}`} />
       <div className="profile-head">
         <div className="avatar">{initials(p.full_name)}</div>
         <div>
@@ -64,7 +66,7 @@ export default function PlayerPage() {
           <p className="muted" style={{ margin: '.3rem 0 0' }}>{[batchLabel(p), yearsAtRoyal(p), p.residence_country && `Lives in ${p.residence_country}`].filter(Boolean).join(' · ')}{p.other_sports?.length ? ` · Also: ${p.other_sports.join(', ')}` : ''}</p>
         </div>
       </div>
-      {p.bio && <p>{p.bio}</p>}
+      {p.bio && <p className="bio">{p.bio}</p>}
       <div className="stats stagger">
         <div className="stat" style={{ "--i": 0 }}><b>{teams.length}</b><span>Teams</span></div>
         <div className="stat"><b>{apps.size}</b><span>Recorded matches</span></div>

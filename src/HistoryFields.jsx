@@ -19,6 +19,8 @@ export function normalizeHistory(h = {}) {
 const thisYear = new Date().getFullYear()
 // Players sometimes play one season after their batch year, so allow batch + 1.
 const GRACE = 1
+// Achievements held for one year only (no year counter).
+const SINGLE = new Set([...HOCKEY_ACHIEVEMENTS, ...OTHER_ACHIEVEMENTS].filter((g) => g.single).map((g) => g.key))
 
 export function validateHistory(h, { joined, batch } = {}) {
   const errs = []
@@ -40,6 +42,7 @@ export function validateHistory(h, { joined, batch } = {}) {
       if (t === 'Other' && !r.text?.trim()) errs.push(`Other hockey achievement ${i + 1}: describe it`)
     })
     if (t !== 'Other') noRepeats(t, rows)
+    if (SINGLE.has(t) && rows.length > 1) errs.push(`${t}: only one year can be entered`)
   }
   const seen = new Set()
   ;(h.sports || []).forEach((s, i) => {
@@ -65,13 +68,13 @@ function Counter({ n, set }) {
 
 const resized = (rows, n, blank) => (rows.length > n ? rows.slice(0, n) : [...rows, ...Array.from({ length: n - rows.length }, blank)])
 
-function Group({ title, ticked, onTick, rows, onRows, blank, renderRow, head }) {
+function Group({ title, ticked, onTick, rows, onRows, blank, renderRow, head, single }) {
   return (
     <div className={`hgroup ${ticked ? 'on' : ''}`}>
       <label className="hgroup-head">
         <input type="checkbox" checked={ticked} onChange={(e) => onTick(e.target.checked)} />
         <span>{title}</span>
-        {ticked && <Counter n={rows.length} set={(n) => onRows(resized(rows, n, blank))} />}
+        {ticked && !single && <Counter n={rows.length} set={(n) => onRows(resized(rows, n, blank))} />}
       </label>
       {ticked && head}
       {ticked && <div className="hrows">{rows.map((r, i) => renderRow(r, i, (patch) => onRows(rows.map((x, j) => (j === i ? { ...x, ...patch } : x)))))}</div>}
@@ -102,11 +105,11 @@ function AchievementGroups({ groups, value, setGroup }) {
     const blank = () => (g.text ? { year: '', text: '' } : { year: '', role: '' })
     const rows = value[g.key] || []
     return (
-      <Group key={g.key} title={g.key === 'Other' ? 'Other hockey achievement' : g.key} ticked={!!value[g.key]} rows={rows}
+      <Group key={g.key} single={g.single} title={g.key === 'Other' ? 'Other hockey achievement' : g.key} ticked={!!value[g.key]} rows={rows}
         onTick={(on) => setGroup(g.key, on ? [blank()] : null)} onRows={(rs) => setGroup(g.key, rs)} blank={blank}
         renderRow={(r, i, patch) => (
           <div key={i} className="hrow">
-            <span className="hrow-n">{ordinal(i + 1)}</span>
+            {!g.single && <span className="hrow-n">{ordinal(i + 1)}</span>}
             <YearInput value={r.year} onChange={(year) => patch({ year })} label={`${g.key} ${ordinal(i + 1)} year`} />
             {g.text && <input className="grow" placeholder="e.g. Best goalkeeper, Schools Nationals" value={r.text} onChange={(e) => patch({ text: e.target.value })} aria-label="Achievement" />}
             {g.ordinal && <OrdinalBadge rows={rows} r={r} />}
@@ -117,7 +120,7 @@ function AchievementGroups({ groups, value, setGroup }) {
   })
 }
 
-export default function HistoryFields({ value, onChange }) {
+export default function HistoryFields({ value, onChange, you }) {
   const v = { other: {}, sports: [], ...value }
   const setIn = (part) => (k, rows) => {
     const next = { ...v[part] }
@@ -132,7 +135,7 @@ export default function HistoryFields({ value, onChange }) {
     <>
       <fieldset className="hset">
         <legend>Hockey teams</legend>
-        <p className="small muted">Tick each team he played in, choose how many years, then enter each year.</p>
+        <p className="small muted">Tick each team {you ? 'you' : 'he'} played in, choose how many years, then enter each year.</p>
         <div className="hgrid">
           {AGE_GROUPS.map((g) => (
             <Group key={g} title={g === '1st XI' ? '1st XI' : `${ageLabel(g)} team`} ticked={!!v.teams[g]} rows={v.teams[g] || []}
@@ -194,15 +197,18 @@ export default function HistoryFields({ value, onChange }) {
 }
 
 // Basic player details, shared by Submit and Admin.
-export const emptyPlayer = () => ({ full_name: '', known_as: '', joined_year: '', batch: '', residence_country: 'Sri Lanka', other_sports: '', bio: '' })
+// mode: 'self' (the player writes about himself), 'teammate' (someone else writes), or unset (admin: every field).
+export const emptyPlayer = () => ({ full_name: '', known_as: '', joined_year: '', batch: '', residence_country: 'Sri Lanka', other_sports: '', bio: '', email: '', whatsapp: '' })
 
-export function validatePlayer(p) {
+export function validatePlayer(p, you) {
   const errs = []
-  if (p.full_name.trim().length < 2) errs.push('Full name: enter his name')
-  for (const [k, l] of [['joined_year', 'Year he joined Royal'], ['batch', 'Batch (year he left Royal)']]) {
+  if (p.full_name.trim().length < 2) errs.push(`Full name: enter ${you ? 'your' : 'his'} name`)
+  for (const [k, l] of [['joined_year', `Year ${you ? 'you' : 'he'} joined Royal`], ['batch', `Batch (year ${you ? 'you' : 'he'} left Royal)`]]) {
     if (p[k] && (!Number.isInteger(+p[k]) || +p[k] < 1835 || +p[k] > thisYear + 1)) errs.push(`${l}: ${p[k]} isn't a valid year`)
   }
-  if (p.joined_year && p.batch && +p.joined_year > +p.batch) errs.push('The year he joined is after the year he left')
+  if (p.joined_year && p.batch && +p.joined_year > +p.batch) errs.push(`The year ${you ? 'you' : 'he'} joined is after the year ${you ? 'you' : 'he'} left`)
+  if (p.email?.trim() && !/^\S+@\S+\.\S+$/.test(p.email.trim())) errs.push(`Email: ${p.email.trim()} doesn't look like an email address`)
+  if (p.whatsapp?.trim() && p.whatsapp.replace(/\D/g, '').length < 9) errs.push('WhatsApp number: enter the full number with the country code')
   return errs
 }
 
@@ -213,27 +219,48 @@ export const playerRow = (p) => ({
   other_sports: p.other_sports.split(',').map((s) => s.trim()).filter(Boolean), bio: p.bio.trim() || null,
 })
 
-export function PlayerBasics({ value, onChange, bioLabel = 'Anything else about him', players }) {
-  const f = (k) => ({ value: value[k], onChange: (e) => onChange({ ...value, [k]: e.target.value }) })
+export function PlayerBasics({ value, onChange, bioLabel, players, mode }) {
+  const f = (k) => ({ value: value[k] ?? '', onChange: (e) => onChange({ ...value, [k]: e.target.value }) })
+  const you = mode === 'self'
+  const he = you ? 'you' : 'he'
+  const bio = (k) => (<label>{bioLabel || `Anything else about ${you ? 'you' : 'him'}`}<textarea rows="3" {...f(k)} /></label>)
   return (
     <>
       <div className="two">
         <label>Full name *<input {...f('full_name')} placeholder="Senuda Weliwatta" />
-          <DidYouMean name={value.full_name} players={players} onPick={(p) => onChange({ ...value, full_name: p.full_name, batch: p.batch ?? value.batch, joined_year: p.joined_year ?? value.joined_year })} />
+          {!you && <DidYouMean name={value.full_name} players={players} onPick={(p) => onChange({ ...value, full_name: p.full_name, batch: p.batch ?? value.batch, joined_year: p.joined_year ?? value.joined_year })} />}
         </label>
         <label>Known as<input {...f('known_as')} placeholder="Nickname, if any" /></label>
       </div>
-      <div className="two">
-        <label>Year he joined Royal<input type="number" inputMode="numeric" {...f('joined_year')} placeholder="2008" /></label>
-        <label>Batch (year he left Royal)<input type="number" inputMode="numeric" {...f('batch')} placeholder="2021" /></label>
-      </div>
-      <div className="two">
-        <label>Country he lives in now
-          <select {...f('residence_country')}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</select>
-        </label>
-        <label>Other sports at Royal (comma separated)<input {...f('other_sports')} placeholder="Boxing, Athletics" /></label>
-      </div>
-      <label>{bioLabel}<textarea rows="3" {...f('bio')} /></label>
+      {mode === 'teammate' ? (
+        <div className="two">
+          <label>Batch (year he left Royal)<input type="number" inputMode="numeric" {...f('batch')} placeholder="2021" /></label>
+          <label>Other sports at Royal (comma separated)<input {...f('other_sports')} placeholder="Boxing, Athletics" /></label>
+        </div>
+      ) : (
+        <>
+          <div className="two">
+            <label>Year {he} joined Royal<input type="number" inputMode="numeric" {...f('joined_year')} placeholder="2008" /></label>
+            <label>Batch (year {he} left Royal)<input type="number" inputMode="numeric" {...f('batch')} placeholder="2021" /></label>
+          </div>
+          <div className="two">
+            <label>Country {he} {you ? 'live' : 'lives'} in now
+              <select {...f('residence_country')}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</select>
+            </label>
+            <label>Other sports at Royal (comma separated)<input {...f('other_sports')} placeholder="Boxing, Athletics" /></label>
+          </div>
+        </>
+      )}
+      {you && (
+        <>
+          <div className="two">
+            <label>Email<input type="email" autoComplete="email" {...f('email')} placeholder="name@example.com" /></label>
+            <label>WhatsApp number<input type="tel" autoComplete="tel" {...f('whatsapp')} placeholder="+94 77 123 4567" /></label>
+          </div>
+          <p className="small muted">Email and WhatsApp are optional. Only the archive admins can see them; they are never shown on the site.</p>
+        </>
+      )}
+      {bio('bio')}
     </>
   )
 }

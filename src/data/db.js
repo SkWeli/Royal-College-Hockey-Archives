@@ -112,7 +112,7 @@ export const HOCKEY_ACHIEVEMENTS = [
 ]
 export const OTHER_ACHIEVEMENTS = [
   { key: 'Royal Crown' },
-  { key: 'Senior Prefect', roles: ['Head Prefect', 'Senior Deputy Head Prefect', 'Deputy Head Prefect'] },
+  { key: 'Senior Prefect', single: true, roles: ['Head Prefect', 'Senior Deputy Head Prefect', 'Deputy Head Prefect'] },
 ]
 export const SPORT_COLOUR_ROLES = ['Captain', 'Vice-Captain']
 export const SPORTS = ['Athletics', 'Badminton', 'Basketball', 'Boxing', 'Chess', 'Cricket', 'Cycling', 'Football', 'Golf', 'Judo', 'Karate', 'Rifle Shooting', 'Rowing', 'Rugby', 'Squash', 'Swimming', 'Table Tennis', 'Taekwondo', 'Tennis', 'Volleyball', 'Water Polo', 'Wrestling']

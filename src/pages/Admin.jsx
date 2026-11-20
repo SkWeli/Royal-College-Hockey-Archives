@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
 import { Browse, Duplicates, MatchEditor, PlayerEditor, TeamEditor } from './AdminEditors.jsx'
-import { batchLabel, demoMode, importMatch, importPlayer, importTeam, insertRow, listSubmissions, setSubmissionStatus, supabase } from '../data/db.js'
+import { batchLabel, demoMode, importMatch, importPlayer, importTeam, insertRow, listSubmissions, setSubmissionStatus, supabase, upsertRow } from '../data/db.js'
 import DataEditor from './DataEditor.jsx'
 import { MultiMatchFields, emptyMatches, matchData, matchesForm, validateMatches } from '../MatchFields.jsx'
 import TeamFields, { emptyTeam, teamData, teamForm, validateTeam } from '../TeamFields.jsx'
@@ -89,6 +89,8 @@ function PlayerForm({ db, onSaved, initial, onDone }) {
     setSt({ busy: true })
     try {
       const p = await importPlayer(db, { player: playerRow(player), history, source: source.trim() })
+      // He sent his own email / WhatsApp: keep them in the private contacts table (members only).
+      if (initial?.contact) await upsertRow('contacts', { player_id: p.id, ...initial.contact, consent: true, updated_at: new Date().toISOString() }, 'player_id')
       setSt({ ok: `Saved ${p.full_name}.` }); setPlayer(emptyPlayer()); setHistory(emptyHistory()); setSource('')
       onSaved(); onDone?.()
     } catch (err) { setSt({ err: err.message }) }
@@ -98,6 +100,7 @@ function PlayerForm({ db, onSaved, initial, onDone }) {
       <PlayerBasics players={db.players} value={player} onChange={(v) => { setPlayer(v); setSt({}) }} bioLabel="Short bio" />
       <HistoryFields value={history} onChange={(v) => { setHistory(v); setSt({}) }} />
       <label>Source (who told us, or where it's from)<input value={source} onChange={(e) => setSource(e.target.value)} /></label>
+      {initial?.contact && <p className="small muted">Private contact he sent: {[initial.contact.email, initial.contact.phone].filter(Boolean).join(' · ')}. It is saved to Contacts (members only) with the player.</p>}
       {st.errs && <div className="errors" role="alert">Please fix these:<ul>{st.errs.map((x) => <li key={x}>{x}</li>)}</ul></div>}
       <button className="gold" disabled={st.busy}>{st.busy ? 'Saving…' : 'Save player'}</button>
       {st.err && <p className="error small">{st.err}</p>}
@@ -210,7 +213,7 @@ function Submissions({ db, onSaved }) {
                 : r.details._data.team
                 ? <TeamForm db={db} onSaved={onSaved} onDone={() => { setOpen(null); mark(r, 'approved') }} initial={{ team: r.details._data.team, source: `Submitted by ${r.submitter_name}` }} />
                 : <PlayerForm db={db} onSaved={onSaved} onDone={() => { setOpen(null); mark(r, 'approved') }}
-                    initial={{ player: toForm(r.details._data.player), history: r.details._data.history, source: `Submitted by ${r.submitter_name}` }} />}
+                    initial={{ player: toForm(r.details._data.player), history: r.details._data.history, contact: r.details._data.contact, source: `Submitted by ${r.submitter_name}` }} />}
             </div>
           )}
         </div>

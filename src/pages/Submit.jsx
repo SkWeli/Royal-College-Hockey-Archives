@@ -20,35 +20,41 @@ export default function Submit() {
   const [team, setTeam] = useState(emptyTeam)
   const [matches, setMatches] = useState(emptyMatches)
   const [kind, setKind] = useState('Player')
+  const [about, setAbout] = useState('self') // Player tab: 'self' or 'teammate'
   const [vals, setVals] = useState({})
   const [player, setPlayer] = useState(emptyPlayer)
   const [history, setHistory] = useState(emptyHistory)
-  const [who, setWho] = useState({ submitter_name: '', submitter_batch: '', submitter_contact: '', botcheck: '' })
+  const [who, setWho] = useState({ submitter_name: '', submitter_contact: '', botcheck: '' })
   const [state, setState] = useState({})
   const fields = KINDS[kind]
+  const self = kind === 'Player' && about === 'self'
   const set = (k, v) => { setVals((s) => ({ ...s, [k]: v })); setState({}) }
   const setW = (k, v) => { setWho((s) => ({ ...s, [k]: v })); setState({}) }
 
   const submit = async (e) => {
     e.preventDefault()
     const errs = fields ? fields.filter(([l, req]) => req && !vals[l]?.trim()).map(([l]) => `${l}: required`)
-      : kind === 'Team' ? validateTeam(team) : kind === 'Matches' ? validateMatches(matches) : [...validatePlayer(player), ...validateHistory(history, player)]
-    if (who.submitter_name.trim().length < 2) errs.push('Your name: required')
+      : kind === 'Team' ? validateTeam(team) : kind === 'Matches' ? validateMatches(matches) : [...validatePlayer(player, self), ...validateHistory(history, player)]
+    if (!self && who.submitter_name.trim().length < 2) errs.push('Your name: required')
     if (errs.length) { setState({ errs }); setTimeout(() => document.querySelector('.errors')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); return }
     setState({ busy: true })
     try {
+      const email = self ? player.email.trim() : '', phone = self ? player.whatsapp.trim() : ''
       const details = fields ? Object.fromEntries(fields.map(([l]) => [l, vals[l]?.trim() || '']))
         : kind === 'Team' ? { ...teamSummary(teamData(team)), _data: { team: teamData(team) } }
         : kind === 'Matches' ? {
           Matches: matches.map((m, i) => `${i + 1}. ` + Object.entries(matchSummary(matchData(m))).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(' · ')).join('\n'),
           _data: { matches: matches.map(matchData) },
         } : {
+        'About': self ? 'Himself' : 'A teammate',
         'Full name': player.full_name.trim(), 'Known as': player.known_as.trim(),
         'At Royal': player.joined_year || player.batch ? `${player.joined_year || '?'}–${player.batch || '?'}` : '',
+        ...(self ? { 'Lives in': player.residence_country, Email: email, WhatsApp: phone } : {}),
         'Other sports': player.other_sports.trim(), ...historySummary(history), 'Anything else': player.bio.trim(),
-        _data: { player: playerRow(player), history },
+        _data: { player: { ...playerRow(player), ...(self ? {} : { joined_year: null, residence_country: null }) }, history, ...(email || phone ? { contact: { email: email || null, phone: phone || null } } : {}) },
       }
-      await sendSubmission({ kind, details, ...who })
+      const from = self ? { submitter_name: player.full_name.trim(), submitter_contact: [email, phone].filter(Boolean).join(' · ') } : who
+      await sendSubmission({ kind: self ? 'Player (himself)' : kind, details, ...from, botcheck: who.botcheck })
       setVals({}); setPlayer(emptyPlayer()); setHistory(emptyHistory()); setTeam(emptyTeam()); setMatches(emptyMatches())
       setState({ ok: true })
     } catch (err) { setState({ err: err.message }) }
@@ -67,28 +73,37 @@ export default function Submit() {
     <>
       <h1>Submit information</h1>
       <p className="lead">Know a player, a team, a match result or an achievement that's missing, or spotted a mistake? Send it here. The admin checks every submission before adding it to the archive.</p>
-      <div className="tabs">{Object.keys(KINDS).map((k) => <button key={k} type="button" className={k === kind ? 'on' : 'ghost'} onClick={() => { setKind(k); setVals({}); setState({}) }}>{k}</button>)}</div>
+      <div className="tabs stretch">{Object.keys(KINDS).map((k) => <button key={k} type="button" className={k === kind ? 'on' : 'ghost'} onClick={() => { setKind(k); setVals({}); setState({}) }}>{k}</button>)}</div>
       <div className="form-card wide">
       <form className="stack" onSubmit={submit}>
         {kind === 'Matches' && <MultiMatchFields db={db} value={matches} onChange={(v) => { setMatches(v); setState({}) }} />}
         {kind === 'Team' && <TeamFields db={db} value={team} onChange={(v) => { setTeam(v); setState({}) }} />}
-        {kind === 'Player' && <><PlayerBasics players={db?.players} value={player} onChange={(v) => { setPlayer(v); setState({}) }} /><HistoryFields value={history} onChange={(v) => { setHistory(v); setState({}) }} /></>}
+        {kind === 'Player' && <>
+          <div className="tabs stretch sub" role="tablist">
+            {[['self', 'Tell us about yourself'], ['teammate', 'Tell us about a teammate']].map(([k, l]) => (
+              <button key={k} type="button" role="tab" aria-selected={about === k} className={about === k ? 'on' : 'ghost'} onClick={() => { setAbout(k); setState({}) }}>{l}</button>
+            ))}
+          </div>
+          <PlayerBasics mode={about} players={db?.players} value={player} onChange={(v) => { setPlayer(v); setState({}) }} />
+          <HistoryFields you={self} value={history} onChange={(v) => { setHistory(v); setState({}) }} />
+        </>}
         {fields?.map(([label, req, long]) => (
           <label key={kind + label}>{label}{req ? ' *' : ''}
             {long ? <textarea rows="3" value={vals[label] || ''} onChange={(e) => set(label, e.target.value)} />
               : <input value={vals[label] || ''} onChange={(e) => set(label, e.target.value)} />}
           </label>
         ))}
+        {!self && <>
         <h2 style={{ margin: '.6rem 0 0' }}>About you</h2>
         <div className="two">
         <label>Your name *<input value={who.submitter_name} onChange={(e) => setW('submitter_name', e.target.value)} /></label>
-        <label>Your batch (year you left Royal)<input type="number" inputMode="numeric" value={who.submitter_batch} onChange={(e) => setW('submitter_batch', e.target.value)} placeholder="2021" /></label>
         <label>Your phone or email
           <input value={who.submitter_contact} onChange={(e) => setW('submitter_contact', e.target.value)} placeholder="+94 77 123 4567" />
         </label>
         </div>
-        <input type="text" name="botcheck" value={who.botcheck} onChange={(e) => setW('botcheck', e.target.value)} tabIndex="-1" autoComplete="off" style={{ display: 'none' }} aria-hidden="true" />
         <p className="small muted">The admin may contact you to check details. Your contact details are never shown on the site.</p>
+        </>}
+        <input type="text" name="botcheck" value={who.botcheck} onChange={(e) => setW('botcheck', e.target.value)} tabIndex="-1" autoComplete="off" style={{ display: 'none' }} aria-hidden="true" />
         <button className="gold" disabled={state.busy}>{state.busy ? 'Sending…' : 'Submit'}</button>
         {state.errs && <div className="errors" role="alert">Please fix these:<ul>{state.errs.map((e) => <li key={e}>{e}</li>)}</ul></div>}
         {state.err && <p className="error small">{state.err}</p>}
