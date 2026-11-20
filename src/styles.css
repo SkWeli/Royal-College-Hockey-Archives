@@ -400,3 +400,7 @@ form.stack label { min-width: 0; }
 .pens.compact { grid-column: 1 / -1; padding: .45rem .6rem; }
 .pens.compact input { width: 66px; padding: .4rem .5rem; }
 .pens label.inline > input { width: 84px !important; } .pens label.inline > select { width: auto !important; min-width: 230px; max-width: 100%; } .pens.compact label.inline > input { width: 68px !important; }
+
+/* Gold star on the Teams grid: sits inline without making the row taller. */
+.star { display: inline-grid; place-items: center; width: 1.3em; height: 1.3em; margin-left: .35rem; vertical-align: middle; margin-block: -.4em; line-height: 1;
+  border-radius: 50%; background: var(--gold-100); color: var(--gold-600); font-size: .85em; }

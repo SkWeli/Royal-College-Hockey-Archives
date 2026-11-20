@@ -26,7 +26,7 @@ export default function Teams() {
                   const t = find(g, s)
                   if (!t) return <td key={g} />
                   const n = (db.membershipsByTeam[t.id] || []).length, honours = wonStar(db.teamAchByTeam[t.id])
-                  return <td key={g}><Link to={`/teams/${t.id}`}>{n} players</Link>{honours.length > 0 && <span className="pill gold" title={honours.map((h) => `${h.title}: ${h.finish}`).join(', ')}>★</span>}</td>
+                  return <td key={g}><Link to={`/teams/${t.id}`}>{n} {n === 1 ? 'player' : 'players'}</Link>{honours.length > 0 && <span className="star" title={honours.map((h) => `${h.title}: ${h.finish}`).join(', ')} aria-label="Champions">★</span>}</td>
                 })}
               </tr>
             ))}
