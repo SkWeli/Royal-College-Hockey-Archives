@@ -241,6 +241,7 @@ form.stack label { display: grid; gap: .35rem; font-size: .9rem; font-weight: 50
 .hrow { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; animation: rise .3s var(--ease) both; }
 .hrow-n { width: 2.4rem; font-size: .8rem; font-weight: 600; color: var(--muted); }
 .hrow input.year { width: 104px; }
+.hrow select.year { width: 116px; }
 .hrow input.grow { flex: 1; min-width: 180px; }
 .chips { display: flex; flex-wrap: wrap; gap: .35rem; }
 .chip { padding: .4rem .75rem; font-size: .82rem; font-weight: 500; border-radius: 999px; background: #fff; color: var(--navy-700); border: 1.5px solid var(--border); box-shadow: none; }

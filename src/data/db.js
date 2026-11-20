@@ -112,7 +112,7 @@ export const HOCKEY_ACHIEVEMENTS = [
 ]
 export const OTHER_ACHIEVEMENTS = [
   { key: 'Royal Crown' },
-  { key: 'Senior Prefect', single: true, roles: ['Head Prefect', 'Senior Deputy Head Prefect', 'Deputy Head Prefect'] },
+  { key: 'Senior Prefect', single: true, term: true, roles: ['Head Prefect', 'Senior Deputy Head Prefect', 'Deputy Head Prefect'] },
 ]
 export const SPORT_COLOUR_ROLES = ['Captain', 'Vice-Captain']
 export const SPORTS = ['Athletics', 'Badminton', 'Basketball', 'Boxing', 'Chess', 'Cricket', 'Cycling', 'Football', 'Golf', 'Judo', 'Karate', 'Rifle Shooting', 'Rowing', 'Rugby', 'Squash', 'Swimming', 'Table Tennis', 'Taekwondo', 'Tennis', 'Volleyball', 'Water Polo', 'Wrestling']
@@ -165,6 +165,10 @@ export const batchLabel = (p) => (p?.batch ? `Batch of ${p.batch}` : 'Batch unkn
 export const yearsAtRoyal = (p) => (p?.joined_year || p?.batch ? `At Royal ${p.joined_year || '?'}–${p.batch || '?'}` : '')
 
 // How an honour is shown, e.g. "1st Year Coloursman", "Boxing: Royal Colours", "Royal Crown".
+// School-year terms (Senior Prefect) are stored as their first year and shown as 2024/25.
+export const termLabel = (y) => (y ? `${y}/${String((+y + 1) % 100).padStart(2, '0')}` : '')
+export const achYear = (a) => (a.title === 'Senior Prefect' && a.season ? termLabel(a.season) : a.season || '')
+
 export function honourLabel(a) {
   let t = a.title === 'Royal Colours' && a.level ? `${a.level} Coloursman` : a.title === 'Senior Prefect' && a.role ? a.role : a.title
   if (a.role && a.title !== 'Senior Prefect') t += ` · ${a.role}`
@@ -192,7 +196,7 @@ export function historySummary(history) {
   const { teams, honours } = historyRows(history)
   return {
     Teams: teams.map((t) => `${t.age_group} ${t.season}${t.role ? ` (${t.role})` : ''}`).join(', '),
-    Achievements: honours.map((h) => `${honourLabel(h)} ${h.season}`).join(', '),
+    Achievements: honours.map((h) => `${honourLabel(h)} ${achYear(h)}`).join(', '),
   }
 }
 

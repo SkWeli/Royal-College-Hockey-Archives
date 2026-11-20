@@ -207,7 +207,7 @@ export function PlayerEditor({ db, id, reload }) {
         }} />
       </Section>
 
-      <Section title="Achievements" count={ach.length} hint="Royal Colours use “Year no.” (1st Year, 2nd Year…). Leave Sport empty for Royal Crown and Senior Prefect.">
+      <Section title="Achievements" count={ach.length} hint="Royal Colours use “Year no.” (1st Year, 2nd Year…). Leave Sport empty for Royal Crown and Senior Prefect. For Senior Prefect enter the first year of the term: 2024 for 2024/25.">
         <Heads fields={achFields} lead="Shown as" />
         {ach.map((a) => (
           <EditRow key={a.id} run={run} row={a} fields={achFields} lead={<span className="small">{honourLabel(a)}</span>}

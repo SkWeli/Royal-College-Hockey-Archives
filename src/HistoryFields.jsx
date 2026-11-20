@@ -1,5 +1,5 @@
 import { DidYouMean } from './components.jsx'
-import { AGE_GROUPS, ageLabel, COUNTRIES, HOCKEY_ACHIEVEMENTS, MAX_YEARS, OTHER_ACHIEVEMENTS, SPORTS, SPORT_COLOUR_ROLES, ordinal, rolesFor } from './data/db.js'
+import { AGE_GROUPS, ageLabel, COUNTRIES, HOCKEY_ACHIEVEMENTS, MAX_YEARS, OTHER_ACHIEVEMENTS, SPORTS, SPORT_COLOUR_ROLES, ordinal, rolesFor, termLabel } from './data/db.js'
 
 // Shared by the public Submit form and the admin player form.
 // value = {
@@ -86,6 +86,18 @@ const YearInput = ({ value, onChange, label }) => (
   <input className="year" type="number" inputMode="numeric" min="1835" max={thisYear} placeholder="Year" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} />
 )
 
+// School year such as 2024/25 (stored as 2024).
+const TermInput = ({ value, onChange, label }) => {
+  const years = Array.from({ length: thisYear - 1950 + 1 }, (_, i) => thisYear - i)
+  if (value && !years.includes(+value)) years.push(+value)
+  return (
+    <select className="year term" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">Year</option>
+      {years.map((y) => <option key={y} value={y}>{termLabel(y)}</option>)}
+    </select>
+  )
+}
+
 const Chips = ({ options, value, onChange }) => (
   <div className="chips">
     {options.map((o) => <button type="button" key={o} className={`chip ${value === o ? 'on' : ''}`} aria-pressed={value === o} onClick={() => onChange(value === o ? '' : o)}>{o}</button>)}
@@ -110,7 +122,9 @@ function AchievementGroups({ groups, value, setGroup }) {
         renderRow={(r, i, patch) => (
           <div key={i} className="hrow">
             {!g.single && <span className="hrow-n">{ordinal(i + 1)}</span>}
-            <YearInput value={r.year} onChange={(year) => patch({ year })} label={`${g.key} ${ordinal(i + 1)} year`} />
+            {g.term
+              ? <TermInput value={r.year} onChange={(year) => patch({ year })} label={`${g.key} year`} />
+              : <YearInput value={r.year} onChange={(year) => patch({ year })} label={`${g.key} ${ordinal(i + 1)} year`} />}
             {g.text && <input className="grow" placeholder="e.g. Best goalkeeper, Schools Nationals" value={r.text} onChange={(e) => patch({ text: e.target.value })} aria-label="Achievement" />}
             {g.ordinal && <OrdinalBadge rows={rows} r={r} />}
             {g.roles && <Chips options={g.roles} value={r.role} onChange={(role) => patch({ role })} />}

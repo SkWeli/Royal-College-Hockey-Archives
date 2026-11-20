@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
 import { EditLink } from '../components.jsx'
-import { AGE_GROUPS, ageLabel, batchLabel, demoMode, honourLabel, loadContact, yearsAtRoyal } from '../data/db.js'
+import { AGE_GROUPS, achYear, ageLabel, batchLabel, demoMode, honourLabel, loadContact, yearsAtRoyal } from '../data/db.js'
 import { TeamLink, initials } from '../components.jsx'
 
 function Journey({ db, teams, achievements }) {
@@ -34,7 +34,7 @@ function Journey({ db, teams, achievements }) {
       })}
       <text x={8} y={top + groups.length * laneH + laneH / 2 + 4} fontSize="12" fill="#1b1f2a">Achievements</text>
       {achievements.filter((a) => a.season).map((a, i) => (
-        <rect key={a.id} x={x(a.season) - 6 + (i % 3) * 4} y={top + groups.length * laneH + laneH / 2 - 6} width="12" height="12" transform={`rotate(45 ${x(a.season) + (i % 3) * 4} ${top + groups.length * laneH + laneH / 2})`} fill="#d4a017"><title>{a.season}: {honourLabel(a)}</title></rect>
+        <rect key={a.id} x={x(a.season) - 6 + (i % 3) * 4} y={top + groups.length * laneH + laneH / 2 - 6} width="12" height="12" transform={`rotate(45 ${x(a.season) + (i % 3) * 4} ${top + groups.length * laneH + laneH / 2})`} fill="#d4a017"><title>{achYear(a)}: {honourLabel(a)}</title></rect>
       ))}
     </svg>
   )
@@ -86,7 +86,7 @@ export default function PlayerPage() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="9" r="6" /><path d="M8.5 14 7 22l5-3 5 3-1.5-8" /></svg>
               </span>
               <div><b>{honourLabel(a)}</b>{a.source && <div className="small muted">Source: {a.source}</div>}</div>
-              <span className="yr">{a.season || ''}</span>
+              <span className="yr">{achYear(a)}</span>
             </div>
           ))}
         </div>
