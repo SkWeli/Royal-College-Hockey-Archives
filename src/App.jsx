@@ -12,6 +12,7 @@ import Graph from './pages/Graph.jsx'
 import Timeline from './pages/Timeline.jsx'
 import Admin from './pages/Admin.jsx'
 import Submit from './pages/Submit.jsx'
+import Tour from './Tour.jsx'
 
 const DataCtx = createContext(null)
 export const useData = () => useContext(DataCtx)
@@ -40,12 +41,16 @@ function Crest() {
   return ok ? <img src="./crest.png" alt="" className="crest" onError={() => setOk(false)} /> : <span className="crest-fallback">RC</span>
 }
 
-function Skeleton() {
+// Full-page loading screen while the archive data arrives.
+function Loader() {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => { const t = setTimeout(() => setSlow(true), 6000); return () => clearTimeout(t) }, [])
   return (
-    <div className="skeleton" aria-label="Loading">
-      <div className="sk" style={{ height: 38, width: '45%' }} />
-      <div className="sk" style={{ width: '70%' }} />
-      <div className="grid">{[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="sk" style={{ height: 110, borderRadius: 14 }} />)}</div>
+    <div className="loader" role="status" aria-live="polite">
+      <div className="loader-crest"><img src="./crest.png" alt="" /></div>
+      <div className="loader-name"><span>Royal College</span><span>Hockey Archives</span></div>
+      <div className="loader-bar"><i /></div>
+      <p>{slow ? 'Still loading… this can take a moment on a slow connection.' : 'Opening the archive…'}</p>
     </div>
   )
 }
@@ -85,7 +90,7 @@ export default function App() {
       {demoMode && <div className="demo">Demo mode: showing sample data. Connect Supabase to use the real archive.</div>}
 
       {error && <main><p className="error">Couldn't load data: {error}</p></main>}
-      {!db && !error && <main><Skeleton /></main>}
+      {!db && !error && <Loader />}
       {db && (isHome ? <div className="page" key="home"><Home /></div> : (
         <main>
           <div className="page" key={loc.pathname}>
@@ -122,6 +127,7 @@ export default function App() {
               <Link to="/teams">Teams &amp; seasons</Link>
               <Link to="/timeline">Historical timeline</Link>
               <Link to="/graph">Player network</Link>
+              <button type="button" className="footer-link" onClick={() => window.dispatchEvent(new Event('rchc:tour'))}>Take the tour</button>
             </div>
             <div>
               <h2>Contribute</h2>
@@ -138,6 +144,7 @@ export default function App() {
           <span>© {new Date().getFullYear()} Royal College Hockey Archives · by Royalists, for Royalists</span>
         </div>
       </footer>
+      {db && <Tour />}
       <button className={`to-top ${scrolled ? 'show' : ''}`} aria-label="Back to top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
       </button>

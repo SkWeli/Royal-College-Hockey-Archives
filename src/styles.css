@@ -401,6 +401,57 @@ form.stack label { min-width: 0; }
 .pens.compact input { width: 66px; padding: .4rem .5rem; }
 .pens label.inline > input { width: 84px !important; } .pens label.inline > select { width: auto !important; min-width: 230px; max-width: 100%; } .pens.compact label.inline > input { width: 68px !important; }
 
+
 /* Gold star on the Teams grid: sits inline without making the row taller. */
 .star { display: inline-grid; place-items: center; width: 1.3em; height: 1.3em; margin-left: .35rem; vertical-align: middle; margin-block: -.4em; line-height: 1;
   border-radius: 50%; background: var(--gold-100); color: var(--gold-600); font-size: .85em; }
+
+/* ---------- Loading screen ---------- */
+.loader { min-height: 70vh; display: grid; place-content: center; justify-items: center; gap: 1rem; text-align: center; padding: 3rem 1.2rem; animation: fadeIn .4s ease both; }
+.loader-crest { width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, var(--navy-600), var(--navy-900)); box-shadow: 0 10px 30px rgba(16,39,94,.3); animation: crestPulse 1.8s ease-in-out infinite; }
+.loader-crest img { width: 62px; height: auto; }
+.loader-name { display: grid; font-family: var(--serif); text-transform: uppercase; line-height: 1.2; color: var(--navy-800); }
+.loader-name span:first-child { font-size: .78rem; letter-spacing: .32em; }
+.loader-name span:last-child { font-size: 1.05rem; letter-spacing: .2em; color: var(--gold-600); }
+.loader-bar { width: 180px; height: 3px; border-radius: 3px; background: var(--navy-100); overflow: hidden; }
+.loader-bar i { display: block; width: 40%; height: 100%; border-radius: 3px; background: var(--gold-500); animation: loadBar 1.2s ease-in-out infinite; }
+.loader p { margin: 0; color: var(--muted); font-size: .9rem; }
+@keyframes crestPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); box-shadow: 0 14px 36px rgba(212,160,23,.3); } }
+@keyframes loadBar { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- First-visit tour ---------- */
+.tour { position: fixed; inset: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: flex-end; padding: 1.2rem; pointer-events: none; }
+.tour.center { align-items: center; justify-content: center; }
+.tour-backdrop { position: absolute; inset: 0; background: rgba(5,15,44,.45); pointer-events: auto; animation: fadeIn .3s ease both; }
+.tour:not(.center) .tour-backdrop { background: rgba(5,15,44,.18); }
+.tour-card { position: relative; pointer-events: auto; width: min(420px, 100%); background: #fff; border-radius: 16px; padding: 1.5rem 1.5rem 1.2rem; border-top: 4px solid var(--gold-500);
+  box-shadow: 0 24px 60px rgba(5,15,44,.35); outline: none; animation: tourIn .35s var(--ease) both; }
+.tour.center .tour-card { text-align: center; width: min(460px, 100%); }
+.tour-card h2 { display: block; margin: 0 0 .6rem; font-size: 1.35rem; }
+.tour-card h2::after { content: none; }
+.tour-card p { margin: 0 0 .8rem; color: var(--muted); line-height: 1.6; }
+.tour-card ul { margin: 0 0 1rem; padding-left: 1.1rem; display: grid; gap: .35rem; font-size: .93rem; }
+.tour-card li::marker { color: var(--gold-500); }
+.tour-crest { width: 72px; height: 72px; margin: 0 auto .9rem; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, var(--navy-600), var(--navy-900)); box-shadow: 0 8px 22px rgba(16,39,94,.3); }
+.tour-crest img { width: 46px; height: auto; }
+.tour-step { font-size: .7rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--gold-600); margin-bottom: .5rem; }
+.tour-dots { display: flex; gap: .35rem; margin: .4rem 0 1rem; }
+.tour.center .tour-dots { justify-content: center; }
+.tour-dots span { width: 18px; height: 3px; border-radius: 2px; background: var(--border); transition: background .3s, width .3s; }
+.tour-dots span.done { background: var(--navy-600); }
+.tour-dots span.on { background: var(--gold-500); width: 30px; }
+.tour-actions { display: flex; gap: .5rem; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.tour.center .tour-actions { justify-content: center; }
+.tour-actions .link-btn { margin-right: auto; background: none; border: 0; box-shadow: none; padding: .4rem .2rem; color: var(--muted); font-weight: 500; }
+.tour-actions .link-btn:hover { color: var(--navy-700); background: none; transform: none; box-shadow: none; }
+@keyframes tourIn { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+/* the menu link for the current step */
+header.top nav a[data-tour-spot] { color: var(--gold-400); border-radius: 8px; outline: 2px solid var(--gold-500); outline-offset: 3px; animation: spot 1.4s ease-in-out infinite; }
+@keyframes spot { 0%, 100% { box-shadow: 0 0 0 0 rgba(212,160,23,.55); } 50% { box-shadow: 0 0 0 8px rgba(212,160,23,0); } }
+@media (max-width: 600px) { .tour { padding: .6rem; } .tour-card { padding: 1.2rem 1.1rem 1rem; } }
+@media (prefers-reduced-motion: reduce) { .loader-crest, .loader-bar i, header.top nav a[data-tour-spot], .tour-card { animation: none; } }
+
+/* "Take the tour" in the footer, styled like the other footer links */
+.footer-cols .footer-link { display: block; padding: .3rem 0; background: none; border: 0; box-shadow: none; color: #dfe5f5; font: inherit; font-size: .95rem; font-weight: 400; cursor: pointer; text-align: left; }
+.footer-cols .footer-link:hover { color: var(--gold-400); background: none; transform: none; box-shadow: none; }

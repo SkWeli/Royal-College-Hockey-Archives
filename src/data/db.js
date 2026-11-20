@@ -119,8 +119,8 @@ export const SPORTS = ['Athletics', 'Badminton', 'Basketball', 'Boxing', 'Chess'
 const NON_SPORT = new Set(OTHER_ACHIEVEMENTS.map((g) => g.key))
 export const MAX_YEARS = 10
 // Venues offered in every match form (others typed in are added to the archive too).
-export const KNOWN_VENUES = ['Astro Turf, Colombo', 'Astro Turf, Matale', 'Colombo University Grounds', 'Edward Park Hockey Ground, Matale', 'RC Grounds', 'Rajarata University Grounds, Mihintale', 'STC Grounds', 'TCK Grounds', 'WC Grounds']
-export const KNOWN_COACHES = ['Mr. Ashok Peiris', 'Mr. Mulaafar', 'Mr. Rohan Dissanayake', 'Mr. Vasantha de Silva']
+export const KNOWN_VENUES = ['Astro Turf, Colombo', 'Astro Turf, Matale', 'Campbell Park', 'Colombo University Grounds', 'Edward Park Hockey Ground, Matale', 'Peradeniya University Grounds', 'RC Grounds', 'Rajarata University Grounds, Mihintale', 'SPC Grounds', 'STC Grounds', 'TCK Grounds', 'WC Grounds']
+export const KNOWN_COACHES = ['Mr. Ashok Peiris', 'Mr. Damith Panditharatne', 'Mr. Mulaafar', 'Mr. Rohan Dissanayake', 'Mr. Vasantha de Silva']
 // Team competitions by age group. Trophy matches are against one school.
 export const TOURNAMENT_RESULTS = ['Champions', 'Runners-Up', '2nd Runners-Up', '4th Place', 'Quarter-Finals', 'Pre-Quarter-Finals', 'Group Stage']
 export const TROPHY_RESULTS = ['Winners', 'Drawn', 'Lost']
