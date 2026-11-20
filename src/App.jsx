@@ -110,11 +110,32 @@ export default function App() {
 
       <footer className="footer">
         <div className="footer-inner">
-          <div>
-            <div className="motto">Disce aut Discede</div>
-            <div className="small">Royal College Hockey Archives · kept by old boys, for old boys</div>
-          </div>
-          <div className="small"><Link to="/submit">Submit information or a correction</Link></div>
+          <Link to="/" className="footer-brand" aria-label="Royal College Hockey Archives, home">
+            <Crest />
+            <span className="footer-name"><span>Royal College</span><span>Hockey Archives</span></span>
+          </Link>
+          <p className="footer-tagline">Preserving the record.<br /><em>Carrying the legacy forward.</em></p>
+          <nav className="footer-cols" aria-label="Footer">
+            <div>
+              <h2>Explore</h2>
+              <Link to="/players">Player directory</Link>
+              <Link to="/teams">Teams &amp; seasons</Link>
+              <Link to="/timeline">Historical timeline</Link>
+              <Link to="/graph">Player network</Link>
+            </div>
+            <div>
+              <h2>Contribute</h2>
+              <Link to="/submit?tab=Player">Add a player</Link>
+              <Link to="/submit?tab=Team">Add a missing record</Link>
+              <Link to="/submit?tab=Correction">Suggest a correction</Link>
+              <Link to="/submit?tab=Other">Contact the archivists</Link>
+            </div>
+          </nav>
+        </div>
+        <div className="footer-bar">
+          <span className="motto">Disce aut Discede</span>
+          <span>Royal College · Colombo 07</span>
+          <span>© {new Date().getFullYear()} Royal College Hockey Archives · by Royalists, for Royalists</span>
         </div>
       </footer>
       <button className={`to-top ${scrolled ? 'show' : ''}`} aria-label="Back to top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>

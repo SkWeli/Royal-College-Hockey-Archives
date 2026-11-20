@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useData } from '../App.jsx'
 import { historySummary, matchSummary, sendSubmission, teamSummary } from '../data/db.js'
 import { MultiMatchFields, emptyMatches, matchData, validateMatches } from '../MatchFields.jsx'
@@ -19,7 +20,10 @@ export default function Submit() {
   const { db } = useData()
   const [team, setTeam] = useState(emptyTeam)
   const [matches, setMatches] = useState(emptyMatches)
+  const [params] = useSearchParams()
   const [kind, setKind] = useState('Player')
+  // Footer links open a tab directly, e.g. #/submit?tab=Correction
+  useEffect(() => { const t = params.get('tab'); if (t && t in KINDS) { setKind(t); setVals({}); setState({}) } }, [params])
   const [about, setAbout] = useState('self') // Player tab: 'self' or 'teammate'
   const [vals, setVals] = useState({})
   const [player, setPlayer] = useState(emptyPlayer)
